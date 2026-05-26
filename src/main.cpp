@@ -166,5 +166,11 @@ BOOL WINAPI DllMain(HINSTANCE hModule, DWORD reason, LPVOID)
         // We don't need thread notifications, so disable them for performance
         DisableThreadLibraryCalls(hModule);
     }
+    else if (reason == DLL_PROCESS_DETACH)
+    {
+        // Clean up hooks to prevent crashes from dangling pointers.
+        // This also unmutes audio if it was muted.
+        WindowHook::Cleanup();
+    }
     return TRUE;
 }

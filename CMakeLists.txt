@@ -52,6 +52,7 @@ target_link_libraries(AltTabFix PRIVATE
     d3d9
     user32
     kernel32
+    Ole32       # COM functions for WASAPI audio muting
 )
 
 # No "lib" prefix (we want "AltTabFix.dll", not "libAltTabFix.dll")
