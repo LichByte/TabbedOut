@@ -82,22 +82,44 @@ static ShowWindow_t g_origShowWindow = nullptr;
 
 
 // ============================================================================
-// GetDesktopDimensions
+// GetMonitorRect - Get the exact rectangle of the primary monitor
+//
+// In multi-monitor setups, we need the EXACT bounds of one monitor,
+// not the combined virtual screen. MonitorFromWindow finds which
+// monitor the game is on, and GetMonitorInfo gives us its bounds.
 // ============================================================================
-static void GetDesktopDimensions(int& width, int& height)
+static void GetMonitorRect(HWND hwnd, RECT& outRect)
 {
-    DEVMODEA dm = {};
-    dm.dmSize = sizeof(dm);
-    if (EnumDisplaySettingsA(nullptr, ENUM_CURRENT_SETTINGS, &dm))
+    // Find which monitor the window is on (fall back to primary)
+    HMONITOR hMon = nullptr;
+    if (hwnd)
+        hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+    else
+        hMon = MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(mi);
+    if (hMon && GetMonitorInfoA(hMon, &mi))
     {
-        width  = dm.dmPelsWidth;
-        height = dm.dmPelsHeight;
+        outRect = mi.rcMonitor;  // Full monitor area (not work area)
     }
     else
     {
-        width  = GetSystemMetrics(SM_CXSCREEN);
-        height = GetSystemMetrics(SM_CYSCREEN);
+        // Fallback: assume primary monitor at (0,0)
+        outRect.left   = 0;
+        outRect.top    = 0;
+        outRect.right  = GetSystemMetrics(SM_CXSCREEN);
+        outRect.bottom = GetSystemMetrics(SM_CYSCREEN);
     }
+}
+
+// Helper for INI hook (just needs width/height of primary monitor)
+static void GetPrimaryMonitorSize(int& width, int& height)
+{
+    RECT r;
+    GetMonitorRect(nullptr, r);
+    width  = r.right - r.left;
+    height = r.bottom - r.top;
 }
 
 
@@ -108,6 +130,7 @@ static void MakeWindowBorderless(HWND hwnd)
 {
     Config& cfg = Config::Get();
 
+    // Strip all window chrome (title bar, borders, resize handles)
     LONG style = GetWindowLongA(hwnd, GWL_STYLE);
     style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU | WS_BORDER);
     style |= WS_POPUP;
@@ -118,24 +141,37 @@ static void MakeWindowBorderless(HWND hwnd)
     if (cfg.bTopMost) exStyle |= WS_EX_TOPMOST;
     SetWindowLongA(hwnd, GWL_EXSTYLE, exStyle);
 
-    int screenW, screenH;
+    // Get the exact bounds of the PRIMARY monitor.
+    // We pass nullptr (not hwnd) because during window creation the
+    // game window may not be positioned on any monitor yet, and
+    // MonitorFromWindow would return an unpredictable result.
+    // nullptr causes GetMonitorRect to use MonitorFromPoint(0,0)
+    // which always returns the primary monitor.
+    int x, y, w, h;
     if (cfg.iCustomWidth > 0 && cfg.iCustomHeight > 0)
     {
-        screenW = cfg.iCustomWidth;
-        screenH = cfg.iCustomHeight;
+        x = 0;
+        y = 0;
+        w = cfg.iCustomWidth;
+        h = cfg.iCustomHeight;
     }
     else
     {
-        GetDesktopDimensions(screenW, screenH);
+        RECT monRect;
+        GetMonitorRect(nullptr, monRect);
+        x = monRect.left;
+        y = monRect.top;
+        w = monRect.right - monRect.left;
+        h = monRect.bottom - monRect.top;
     }
 
     SetWindowPos(hwnd,
         cfg.bTopMost ? HWND_TOPMOST : HWND_TOP,
-        0, 0, screenW, screenH,
+        x, y, w, h,
         SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
     ShowWindow(hwnd, SW_SHOW);
-    Log("MakeWindowBorderless: applied %dx%d borderless", screenW, screenH);
+    Log("MakeWindowBorderless: applied %dx%d at (%d,%d)", w, h, x, y);
 }
 
 
@@ -227,7 +263,7 @@ static UINT WINAPI Hook_GetPrivateProfileIntA(
                 if (cfg.iCustomWidth > 0)
                     w = cfg.iCustomWidth;
                 else
-                    GetDesktopDimensions(w, h);
+                    GetPrimaryMonitorSize(w, h);
                 Log("Hook_GetPrivateProfileIntA: intercepted iSize W -> returning %d", w);
                 return w;
             }
@@ -240,7 +276,7 @@ static UINT WINAPI Hook_GetPrivateProfileIntA(
                 if (cfg.iCustomHeight > 0)
                     h = cfg.iCustomHeight;
                 else
-                    GetDesktopDimensions(w, h);
+                    GetPrimaryMonitorSize(w, h);
                 Log("Hook_GetPrivateProfileIntA: intercepted iSize H -> returning %d", h);
                 return h;
             }
