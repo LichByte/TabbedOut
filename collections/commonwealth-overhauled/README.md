@@ -1,6 +1,6 @@
 # Commonwealth Overhauled
 
-A full-overhaul Fallout 4 collection: 54 mods across stability, fixes, UI,
+A full-overhaul Fallout 4 collection: 56 mods across stability, fixes, UI,
 progression, combat, settlements, quests and visuals — plus the tooling to turn
 the curated list into a Vortex-importable collection archive.
 
@@ -138,7 +138,7 @@ run it as a tool against the finished load order.
 
 CBBE's FOMOD has a *Vanilla Outfits* option if you want it SFW.
 
-### Phase 2 — progression and combat (8)
+### Phase 2 — progression and combat (10)
 
 | Mod | Why |
 |---|---|
@@ -149,6 +149,8 @@ CBBE's FOMOD has a *Vanilla Outfits* option if you want it SFW.
 | [See Through Scopes](https://www.nexusmods.com/fallout4/mods/9476) | Real optics instead of the overlay |
 | [Tactical Reload](https://www.nexusmods.com/fallout4/mods/49444) | Magazine-retention reloads |
 | [Everyone's Best Friend](https://www.nexusmods.com/fallout4/mods/13459) | Dogmeat + a human companion without Lone Wanderer |
+| [Survival Options](https://www.nexusmods.com/fallout4/mods/14650) *(optional)* | Per-setting control over Survival's rules |
+| [Survival Options + EBF Merged Patch](https://www.nexusmods.com/fallout4/mods/45109) *(optional)* | Mandatory if you run both of the above |
 | [Start Me Up Redux](https://www.nexusmods.com/fallout4/mods/56984) | Alternate start — skip the vault intro |
 
 CURSE was picked over [Better Locational Damage](https://www.nexusmods.com/fallout4/mods/3815)
@@ -220,6 +222,10 @@ LOOT handles most of it. Three things it will not reliably get right:
 - **ELFX + PRP** — ELFX edits interior cells. Check its files for a PRP patch
   and install it.
 - **NAC X + True Storms** — broken without patch 60884. Not optional.
+- **Survival Options + Everyone's Best Friend** — both edit the `hc_manager`
+  quest. Without patch 45109 the "heal your companion" objective points at the
+  wrong NPC or places no marker at all. Only bites if you enabled the optional
+  Survival mods.
 
 ## Deliberately not included
 
@@ -230,10 +236,12 @@ LOOT handles most of it. Three things it will not reliably get right:
 - **WET (Water Enhancement Textures).** Delisted from Nexus, so it cannot be
   resolved by the builder.
 - **An ENB preset.** See above.
-- **Settlers of the Commonwealth and Survival Options.** Both are good; neither
-  mod id could be confirmed against a live Nexus URL during curation, and the
-  builder rejects unverified entries by design. Add them by hand if you want
-  them — grab the id from the URL and append an entry to `modlist.yaml`.
+- **Settlers of the Commonwealth.** Genuinely good, and it cannot go in a Nexus
+  collection. Only its satellites are on the Nexus — the SS2 leader packs, the
+  [FaceGen data](https://www.nexusmods.com/fallout4/mods/90816) — with no base
+  mod page; the author distributes it from 3dnpc.com. A collection can only
+  reference Nexus-hosted files, so this one has to be a manual install
+  regardless of how the list is built.
 
 ## Adding a mod
 

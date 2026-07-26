@@ -394,6 +394,34 @@ mods:
     expected_name_contains: Everyone's Best Friend
     notes: Dogmeat plus a human companion without burning the Lone Wanderer perk.
 
+  - name: Survival Options
+    mod_id: 14650
+    phase: 2
+    category: Gameplay
+    optional: true
+    notes: >
+      Holotape/MCM control over every survival setting individually — hunger,
+      thirst, sleep, encumbrance damage, fast travel, damage multipliers. Lets
+      you take the parts of Survival you want without the save-only-in-beds part.
+      Pairs with Unlimited Survival Mode rather than replacing it: that one
+      restores hard-disabled engine features, this one tunes the rules. Skip
+      both if you are not playing Survival.
+
+  - name: Survival Options and Everyone's Best Friend Merged Patch
+    mod_id: 45109
+    phase: 2
+    category: Gameplay
+    optional: true
+    rules:
+      after:
+        - Survival Options
+        - Everyone's Best Friend
+    notes: >
+      Required if you run both Survival Options and Everyone's Best Friend —
+      they both edit the hc_manager quest, and without this the "heal your
+      companion" objective points at the wrong NPC or fails to place a marker.
+      Merges both sides and keeps the Survival globals intact.
+
   - name: Start Me Up Redux - An Update for Alternate Start and Dialogue Overhaul.
     mod_id: 56984
     phase: 2
