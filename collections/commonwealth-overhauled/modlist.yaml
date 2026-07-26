@@ -1,0 +1,573 @@
+# Commonwealth Overhauled — a full-overhaul Fallout 4 collection
+#
+# This file is the source of truth. `build_collection.py` reads it, resolves
+# every `mod_id` against the Nexus API (checking that the live mod name still
+# matches `name`), and emits a Vortex-importable collection.json.
+#
+# Every `mod_id` below was verified against a live nexusmods.com/fallout4/mods/<id>
+# URL. The build script re-verifies at build time, so a mod that gets renamed,
+# hidden, or deleted fails the build loudly instead of shipping broken.
+#
+# phase: Vortex installs all mods in phase N before starting phase N+1.
+#   0 = script extender plumbing and frameworks
+#   1 = bug fixes and patches that everything else builds on
+#   2 = the actual content
+#   3 = things that must run against a finished load order
+
+collection:
+  name: Commonwealth Overhauled
+  domain: fallout4
+  author: ""
+  description: |
+    A full overhaul of Fallout 4: stability foundation, engine and bug fixes,
+    a rebuilt UI, reworked progression and combat, an ammunition economy,
+    Sim Settlements 2 as the settlement backbone, several large voiced quest
+    mods, and a weather/lighting/texture pass.
+
+    Built for a downgraded 1.10.163 install. See README.md before installing —
+    F4SE and a handful of redistributables must be installed by hand first.
+  game_versions:
+    - 1.10.163.0
+  recommend_new_profile: true
+
+# ---------------------------------------------------------------------------
+# Manual prerequisites. These are NOT Nexus-managed and cannot go in the
+# collection archive — Vortex shows them as install instructions instead.
+# ---------------------------------------------------------------------------
+prerequisites:
+  - name: Fallout 4 Script Extender (F4SE)
+    url: https://f4se.silverlock.org/
+    notes: >
+      Install the 0.6.23 build for game version 1.10.163. Extract the loose
+      files into the Fallout 4 root folder (next to Fallout4.exe) and always
+      launch via f4se_loader.exe. Nothing below works without this.
+  - name: Visual C++ 2019/2022 x64 Redistributable
+    url: https://aka.ms/vs/17/release/vc_redist.x64.exe
+    notes: Required by Buffout 4 and several other F4SE plugins.
+  - name: Simple Fallout 4 Downgrader
+    url: https://www.nexusmods.com/fallout4/mods/81933
+    nexus_mod_id: 81933
+    notes: >
+      Run this BEFORE installing anything else if you are on the next-gen
+      (1.10.980+) build. It is a one-click downgrade to 1.10.163 and needs no
+      Steam credentials. Listed as a prerequisite rather than a collection mod
+      because it patches the game executable, which a mod manager must not own.
+  - name: Archive invalidation
+    notes: >
+      Vortex does this for you when you enable it for Fallout 4, but verify
+      that Fallout4Custom.ini contains [Archive] / bInvalidateOlderFiles=1 and
+      sResourceDataDirsFinal= (blank). Loose-file mods are silently ignored
+      otherwise.
+
+# ---------------------------------------------------------------------------
+# Phase 0 — script extender plumbing and frameworks
+# ---------------------------------------------------------------------------
+mods:
+  - name: Address Library for F4SE Plugins
+    mod_id: 47327
+    phase: 0
+    category: Framework
+    notes: >
+      Version-independent offsets for F4SE plugins. Pick the file matching your
+      game version — "All in one" covers both 1.10.163 and next-gen.
+
+  - name: xSE PluginPreloader F4
+    mod_id: 33946
+    phase: 0
+    category: Framework
+    notes: >
+      Loads F4SE plugins before the game initialises. Required by Buffout 4.
+      Read the mod page — xSE PluginPreloader.xml may need bLoadMethod set to
+      OnThreadAttach on some setups, and it must land in the game root, not Data.
+
+  - name: Buffout 4 NG
+    mod_id: 64880
+    phase: 0
+    category: Framework
+    expected_name_contains: Buffout 4
+    notes: >
+      Engine fixes plus the crash logger the entire community troubleshoots
+      with. The NG build covers 1.10.163, 1.10.984 and VR, so it survives a
+      version change. Supersedes the original Buffout 4 (mods/47359).
+
+  - name: PrivateProfileRedirector F4 - Faster game start (INI file cacher)
+    mod_id: 33947
+    phase: 0
+    category: Framework
+    expected_name_contains: PrivateProfileRedirector
+    notes: Caches INI reads. Large startup and load-time win on script-heavy lists.
+
+  - name: Baka ScrapHeap
+    mod_id: 46340
+    phase: 0
+    category: Framework
+    notes: >
+      Expands the ScrapHeap allocation the papyrus VM runs out of. Effectively
+      mandatory once Sim Settlements 2 is in the list.
+
+  - name: Mod Configuration Menu
+    mod_id: 21497
+    phase: 0
+    category: Framework
+    notes: In-game settings menu that most mods below register their options with.
+
+  - name: MCM Booster
+    mod_id: 56997
+    phase: 0
+    category: Framework
+    notes: Cuts MCM load time to near-instant. Matters a lot at this mod count.
+
+  - name: HUDFramework
+    mod_id: 20309
+    phase: 0
+    category: Framework
+    notes: >
+      Lets multiple mods add HUD widgets without fighting over the same file.
+      Required by Sim Settlements 2.
+
+  - name: Workshop Framework
+    mod_id: 35004
+    phase: 0
+    category: Framework
+    notes: >
+      Rewrites the vanilla workshop scripts. Required by Sim Settlements 2 and
+      fixes several vanilla settlement bugs on its own.
+
+  - name: Canary Save File Monitor
+    mod_id: 44949
+    phase: 0
+    category: Framework
+    notes: >
+      Warns you when a script-heavy mod loses data in your save, so you can roll
+      back instead of discovering it forty hours later.
+
+# ---------------------------------------------------------------------------
+# Phase 1 — bug fixes, engine patches, performance
+# ---------------------------------------------------------------------------
+  - name: Unofficial Fallout 4 Patch - UFO4P
+    mod_id: 4598
+    phase: 1
+    category: Fixes
+    expected_name_contains: Unofficial Fallout 4 Patch
+    rules:
+      after:
+        - Workshop Framework
+    notes: >
+      The baseline bug fix pack. Loads immediately after the DLC ESMs — near the
+      very top of the plugin order, before everything else in this collection.
+
+  - name: Community Fixes Merged
+    mod_id: 74945
+    phase: 1
+    category: Fixes
+    rules:
+      after:
+        - Unofficial Fallout 4 Patch - UFO4P
+    notes: >
+      A merge of dozens of small community fixes that UFO4P does not cover.
+      Install its FOMOD with the UFO4P option checked.
+
+  - name: Previsibines Repair Pack Stable Branch - PRP
+    mod_id: 46403
+    phase: 1
+    category: Fixes
+    expected_name_contains: Previsibines Repair Pack
+    rules:
+      after:
+        - Unofficial Fallout 4 Patch - UFO4P
+        - Community Fixes Merged
+    notes: >
+      Rebuilds the game's precombine/previs data. This is the single biggest
+      framerate win in downtown Boston AND it must load near the BOTTOM of the
+      plugin order — anything that edits a cell after PRP breaks previs for that
+      cell and tanks performance. Do not install Scrap Everything alongside it.
+
+  - name: Weapon Debris Crash Fix
+    mod_id: 48078
+    phase: 1
+    category: Fixes
+    notes: >
+      Fixes the hard crash on NVIDIA GTX/RTX cards when weapon debris is enabled.
+      Skip only if you are on AMD or Intel graphics.
+
+  - name: High FPS Physics Fix
+    mod_id: 44798
+    phase: 1
+    category: Fixes
+    notes: >
+      Decouples physics from framerate. Mandatory above 60 FPS, and its loading
+      screen tweaks are worth having regardless.
+
+  - name: Long Loading Times Fix
+    mod_id: 73469
+    phase: 1
+    category: Fixes
+    notes: Removes a busy-wait in the loading code. Compatible with High FPS Physics Fix.
+
+  - name: Insignificant Object Remover
+    mod_id: 9835
+    phase: 1
+    category: Performance
+    notes: Strips tiny undecorated clutter meshes. Cheap framerate for no visual loss.
+
+  - name: Unlimited Survival Mode - F4SE
+    mod_id: 26163
+    phase: 1
+    category: Fixes
+    notes: >
+      Restores console, saving and other hard-disabled features in Survival mode.
+      Only relevant if you play Survival — mark optional otherwise.
+    optional: true
+
+# ---------------------------------------------------------------------------
+# Phase 2 — interface
+# ---------------------------------------------------------------------------
+  - name: FallUI - Icon Library
+    mod_id: 60579
+    phase: 2
+    category: Interface
+    notes: Shared icon set the rest of the FallUI suite draws from. Install first.
+
+  - name: FallUI - HUD
+    mod_id: 51813
+    phase: 2
+    category: Interface
+    rules:
+      after:
+        - FallUI - Icon Library
+        - HUDFramework
+    notes: Fully configurable HUD with native HUDFramework support — no patches needed.
+
+  - name: FallUI - Inventory
+    mod_id: 48758
+    phase: 2
+    category: Interface
+    rules:
+      after:
+        - FallUI - Icon Library
+    notes: Sortable, filterable, dense inventory. The headline mod of the suite.
+
+  - name: FallUI - Workbench
+    mod_id: 49300
+    phase: 2
+    category: Interface
+    rules:
+      after:
+        - FallUI - Icon Library
+
+  - name: FallUI - Map
+    mod_id: 49920
+    phase: 2
+    category: Interface
+    rules:
+      after:
+        - FallUI - Icon Library
+
+  - name: FallUI - Sleep and Wait
+    mod_id: 49070
+    phase: 2
+    category: Interface
+    rules:
+      after:
+        - FallUI - Icon Library
+
+  - name: Extended Dialogue Interface
+    mod_id: 27216
+    phase: 2
+    category: Interface
+    notes: >
+      Removes the hardcoded four-option dialogue limit and shows full response
+      text. Required by several quest mods below. Do NOT install alongside Full
+      Dialogue Interface (mods/1235) — pick one, and this collection picks XDI.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — character appearance
+# ---------------------------------------------------------------------------
+  - name: LooksMenu
+    mod_id: 12631
+    phase: 2
+    category: Characters
+    notes: Engine-level character creation extensions. Required by LMCC and CBBE presets.
+
+  - name: Looks Menu Customization Compendium
+    mod_id: 24830
+    phase: 2
+    category: Characters
+    rules:
+      after:
+        - LooksMenu
+    notes: Hundreds of extra face paints, scars, tattoos, brows and hair colours.
+
+  - name: Caliente's Beautiful Bodies Enhancer -CBBE-
+    mod_id: 15
+    phase: 2
+    category: Characters
+    expected_name_contains: Caliente
+    notes: >
+      Body replacer and the de facto standard target for outfit mods. Choose the
+      non-nude "Vanilla Outfits" option in the FOMOD if you want it SFW.
+
+  - name: BodySlide and Outfit Studio
+    mod_id: 25
+    phase: 3
+    category: Characters
+    rules:
+      after:
+        - Caliente's Beautiful Bodies Enhancer -CBBE-
+    notes: >
+      Phase 3 because you run it as a tool against the finished load order.
+      Build all outfits with your chosen preset and "Build Morphs" ticked, or
+      bodies will not match armour.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — progression, combat, gunplay
+# ---------------------------------------------------------------------------
+  - name: Be Exceptional - Skills and Perk Overhaul
+    mod_id: 28222
+    phase: 2
+    category: Gameplay
+    expected_name_contains: Be Exceptional
+    notes: >
+      Reintroduces a Fallout-style skill system on top of a reworked perk chart.
+      This is the collection's progression backbone. Mutually exclusive with
+      Lunar Fallout Overhaul and Better Locational Damage's perk module.
+
+  - name: CURSE - Combat Overhaul
+    mod_id: 74413
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Be Exceptional - Skills and Perk Overhaul
+    notes: >
+      Script-free combat rebalance — lethal both ways, no ballistic-sponge
+      raiders. Chosen over Better Locational Damage (mods/3815) and Lunar
+      Fallout Overhaul (mods/34769) because it stays out of the perk and levelled
+      list space that Be Exceptional and Munitions occupy. It still overlaps with
+      Be Exceptional on damage records; see the conflict-resolution section of
+      the README before your first playthrough.
+
+  - name: Munitions - Ammo Expansion Project
+    mod_id: 66051
+    phase: 2
+    category: Gameplay
+    notes: >
+      Lore-friendly ammunition types and a real ammo economy. Load before any
+      weapon mod that patches against it.
+
+  - name: Munitions - Official Patch Repository
+    mod_id: 66052
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Munitions - Ammo Expansion Project
+    notes: Pick the patches matching the weapon mods you actually installed.
+
+  - name: See Through Scopes
+    mod_id: 9476
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Munitions - Ammo Expansion Project
+    notes: >
+      Real see-through optics instead of the vanilla scope overlay. Its ESP must
+      load after any weapon mod it patches or the ADS alignment breaks.
+
+  - name: Tactical Reload
+    mod_id: 49444
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - See Through Scopes
+    notes: >
+      Magazine-retention reload animations. If first-person reloads stop working,
+      it is the known See Through Scopes conflict — enable the Tactical Reload
+      patch in the STS holotape/MCM settings.
+
+  - name: Everyone's Best Friend
+    mod_id: 13459
+    phase: 2
+    category: Gameplay
+    expected_name_contains: Everyone's Best Friend
+    notes: Dogmeat plus a human companion without burning the Lone Wanderer perk.
+
+  - name: Start Me Up Redux - An Update for Alternate Start and Dialogue Overhaul.
+    mod_id: 56984
+    phase: 2
+    category: Gameplay
+    expected_name_contains: Start Me Up
+    rules:
+      after:
+        - Extended Dialogue Interface
+    notes: >
+      Alternate start — skip the vault intro and pick a backstory. Install the
+      XDI variant, not the Full Dialogue Interface one. Strongly recommended on a
+      list this size: it lets you start outside Vault 111 with mods settled.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — settlements
+# ---------------------------------------------------------------------------
+  - name: Sim Settlements 2
+    mod_id: 47976
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Workshop Framework
+        - HUDFramework
+    notes: >
+      The settlement overhaul and a full voiced questline in its own right.
+      Start a new game with it — do not add it mid-save.
+
+  - name: Sim Settlements 2 - Chapter 2
+    mod_id: 55817
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Sim Settlements 2
+
+  - name: Sim Settlements 2 - Chapter 3
+    mod_id: 73394
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Sim Settlements 2 - Chapter 2
+
+  - name: Sim Settlements 2 - Previsibines Expansion Pack
+    mod_id: 57947
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Sim Settlements 2
+        - Previsibines Repair Pack Stable Branch - PRP
+    notes: Restores previs data in the cells SS2 edits. Skipping this costs framerate.
+
+  - name: Wasteland Venturers Sim Settlements 2 Addon Pack
+    mod_id: 48060
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Sim Settlements 2
+    optional: true
+    notes: Extra building plans. Optional flavour — safe to skip.
+
+  - name: Sim Settlements 2 - Junk Town 2 Addon Pack
+    mod_id: 48271
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Sim Settlements 2
+    optional: true
+
+  - name: Homemaker - Expanded Settlements
+    mod_id: 1478
+    phase: 2
+    category: Settlement
+    notes: ~1000 extra buildable objects. A dependency of many SS2 city plans.
+
+  - name: Settlement Objects Expansion Pack
+    mod_id: 10075
+    phase: 2
+    category: Settlement
+    rules:
+      after:
+        - Homemaker - Expanded Settlements
+    notes: >
+      More buildables, including a lot of scripted objects other mods expect.
+      Install the Homemaker compatibility option in its FOMOD.
+
+  - name: Place Everywhere
+    mod_id: 9424
+    phase: 2
+    category: Settlement
+    notes: >
+      Removes red placement restrictions and object snapping limits. F4SE plugin,
+      so it must match your game version exactly.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — new content and quests
+# ---------------------------------------------------------------------------
+  - name: Atomic Radio and Tales from the Commonwealth
+    mod_id: 8704
+    phase: 2
+    category: Quests
+    rules:
+      after:
+        - Extended Dialogue Interface
+    notes: >
+      Fully voiced quests, companions and a new radio station. One of the
+      highest-quality content mods on the Nexus.
+
+  - name: Outcasts and Remnants - Quest Mod Plus
+    mod_id: 21469
+    phase: 2
+    category: Quests
+    notes: Large voiced questline built around BoS outcasts and Enclave remnants.
+
+  - name: America Rising 2 - Legacy of the Enclave
+    mod_id: 75767
+    phase: 2
+    category: Quests
+    notes: Full Enclave faction questline with its own settlement and companions.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — weather, lighting, textures
+# ---------------------------------------------------------------------------
+  - name: NAC X - NATURAL AND ATMOSPHERIC COMMONWEALTH 10 - Legacy Edition
+    mod_id: 46722
+    phase: 2
+    category: Visuals
+    expected_name_contains: NAC X
+    notes: >
+      Weather, lighting, tonemapping and interior/exterior sound design in one
+      modular package. The collection's visual baseline — configure it in MCM.
+
+  - name: True Storms - Wasteland Edition (Thunder-Rain-Weather Redone)
+    mod_id: 4472
+    phase: 2
+    category: Visuals
+    expected_name_contains: True Storms
+    rules:
+      after:
+        - NAC X - NATURAL AND ATMOSPHERIC COMMONWEALTH 10 - Legacy Edition
+    notes: Heavy storms, radstorms and dust storms. Needs the patch below.
+
+  - name: NacX - True Storms Compatibility Patch
+    mod_id: 60884
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - True Storms - Wasteland Edition (Thunder-Rain-Weather Redone)
+    notes: >
+      Mandatory if you run both. Merges True Storms weathers and ghoul hordes
+      into the NAC X system. Without it the two fight and you get flat weather.
+
+  - name: Enhanced Lights and FX
+    mod_id: 13596
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - NAC X - NATURAL AND ATMOSPHERIC COMMONWEALTH 10 - Legacy Edition
+    notes: >
+      Dark, moody interiors where light comes from actual sources. Check for a
+      PRP patch — ELFX edits interior cells and can invalidate previs.
+
+  - name: Vivid Fallout - All in One - Textures in HD - ORIGINAL SIZE - LOWER RESOLUTION
+    mod_id: 25714
+    phase: 2
+    category: Visuals
+    expected_name_contains: Vivid Fallout
+    notes: >
+      Landscape, rock, road and building textures in one BA2. Packed rather than
+      loose, so it costs far less streaming performance than most texture packs.
+      Take the 1K/2K option unless you have VRAM to spare.
