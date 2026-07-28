@@ -1,0 +1,173 @@
+# Commonwealth Overhauled — adult / body overlay
+#
+# Opt-in. Merged into the base list only when you build with --adult:
+#
+#     python3 build_collection.py --adult
+#
+# This produces a SEPARATE collection ("Commonwealth Overhauled (Adult)") with
+# its own zip, so the SFW build is never silently replaced by this one.
+#
+# Two things constrain what can be in here:
+#
+# 1. Nexus only. A Vortex collection can only reference Nexus-hosted files.
+#    Most of the Fallout 4 adult ecosystem — every AAF animation pack, Fusion
+#    Girl, BodyTalk3 — lives on LoversLab and CANNOT be collection entries.
+#    They are listed under `prerequisites` as manual installs instead, the same
+#    way F4SE is.
+#
+# 2. Adult content must be enabled on the Nexus account whose API key builds
+#    this, or the API will not return these mods and the build will fail with
+#    404s. See the README.
+#
+# Body replacers are MUTUALLY EXCLUSIVE — one female body, one male body, no
+# stacking. That is what `conflicts_with` encodes, and the builder refuses to
+# emit a manifest where two conflicting mods are both non-optional.
+
+collection:
+  name_suffix: " (Adult)"
+
+prerequisites:
+  - name: Adult content enabled on your Nexus account
+    url: https://www.nexusmods.com/users/myaccount?tab=preferences
+    notes: >
+      Adult content is hidden by default on new accounts. Enable it in
+      preferences, and complete age verification if you are in the UK or EU —
+      Nexus gates adult downloads behind it to comply with the Online Safety
+      Act and Digital Services Act. Until that is done the API returns 404 for
+      every mod in this file and the build fails.
+
+  - name: AAF animation packs (LoversLab)
+    url: https://www.loverslab.com/files/category/181-fallout-4/
+    notes: >
+      AAF itself is on Nexus and is in this list. The animations it plays are
+      not — packs like Atomic Lust, Leito, SavageCabbage and Farelle are
+      LoversLab-only. AAF does nothing at all without at least one pack. Install
+      them manually into your mod manager after the collection finishes.
+
+  - name: Fusion Girl (LoversLab)
+    url: https://www.loverslab.com/
+    notes: >
+      The other main female body, moved off Nexus. If you want Fusion Girl
+      instead of CBBE or Atomic Beauty, install it manually and remove the
+      others — see the mutual-exclusivity note above. Requires ZeX, which IS in
+      this list.
+
+  - name: BodyTalk3 (LoversLab)
+    url: https://www.loverslab.com/
+    notes: >
+      Male body replacer with ZeX slider support. LoversLab-only. Alternative to
+      Enhanced Vanilla Bodies below — install one or the other, never both.
+
+mods:
+  - name: ZeX - ZaZ Extended Skeleton
+    mod_id: 36702
+    phase: 0
+    category: Adult Framework
+    adult: true
+    notes: >
+      Adds bones the vanilla skeleton lacks so animators can move body parts
+      independently. Required by Fusion Girl, BodyTalk3 and essentially every
+      AAF animation pack. Phase 0 because bodies and physics load against it —
+      a skeleton installed after the meshes that reference it does nothing.
+
+  - name: Advanced Animation Framework (AAF)
+    mod_id: 31304
+    phase: 0
+    category: Adult Framework
+    adult: true
+    expected_name_contains: Advanced Animation Framework
+    rules:
+      after:
+        - ZeX - ZaZ Extended Skeleton
+    notes: >
+      The animation framework everything else drives. Ships with NO animations —
+      it is a player, not content. Install at least one LoversLab animation pack
+      or it will load and do nothing. Requires F4SE.
+
+  - name: Enhanced Vanilla Bodies
+    mod_id: 22110
+    phase: 2
+    category: Adult Body
+    adult: true
+    conflicts_with:
+      - Atomic Beauty
+    notes: >
+      Nude male and female body replacer built on the vanilla shape, so it stays
+      consistent with vanilla outfit meshes. This is the male body for this
+      overlay; the alternative is BodyTalk3 on LoversLab. Pick the male-only
+      option in its FOMOD if you are keeping CBBE for females, which is what the
+      base list installs.
+
+  - name: Atomic Beauty
+    mod_id: 12406
+    phase: 2
+    category: Adult Body
+    adult: true
+    optional: true
+    conflicts_with:
+      - Caliente's Beautiful Bodies Enhancer -CBBE-
+      - Enhanced Vanilla Bodies
+    notes: >
+      Curvier female body replacer, an alternative to CBBE rather than an
+      addition. Optional and OFF by default because the base list already
+      installs CBBE and outfit refits target one body or the other. If you
+      enable this, disable CBBE and rebuild every outfit in BodySlide against
+      the Atomic Beauty preset — mixing bodies produces neck seams and
+      clipping through armour.
+
+  - name: Valkyr Female Face and Body Textures
+    mod_id: 3841
+    phase: 2
+    category: Adult Textures
+    adult: true
+    rules:
+      after:
+        - Caliente's Beautiful Bodies Enhancer -CBBE-
+    notes: >
+      High-resolution female face and body skin, built to line up with CBBE's
+      default textures. Load after the body replacer — textures applied before
+      the mesh they belong to get overwritten. Expect to nudge the neck seam in
+      LooksMenu afterwards; that is normal for every face texture replacer.
+
+  - name: Lovely Skin Complex - texture pack for CBBE - body and face
+    mod_id: 29722
+    phase: 2
+    category: Adult Textures
+    adult: true
+    optional: true
+    conflicts_with:
+      - Valkyr Female Face and Body Textures
+    notes: >
+      Alternative CBBE skin set. Optional and off by default — two skin texture
+      packs overwrite each other, so run one. Pick whichever look you prefer and
+      disable the other.
+
+  - name: CBP Physics for Fallout 4
+    mod_id: 39088
+    phase: 2
+    category: Adult Physics
+    adult: true
+    expected_name_contains: CBP Physics
+    rules:
+      after:
+        - ZeX - ZaZ Extended Skeleton
+        - Enhanced Vanilla Bodies
+    notes: >
+      Chest and butt physics for the player and NPCs. Supports CBBE, Fusion
+      Girl, 3BBB and TWB. F4SE plugin, so it is version-locked — confirm the
+      file matches 1.10.163 and not the Anniversary Edition build (mods/102987),
+      which is a different game version entirely.
+
+  - name: MTM 3BBB CBP OCBP OCBPC Physics Preset - CBBE - Fusion Girl - Wonder Body - Enhanced Vanilla Bodies - JaneBod Extended - Vanilla - More
+    mod_id: 39195
+    phase: 3
+    category: Adult Physics
+    adult: true
+    expected_name_contains: MTM
+    rules:
+      after:
+        - CBP Physics for Fallout 4
+    notes: >
+      Tuning preset for CBP — weightier, less rubbery motion than the default
+      config. Phase 3 because it overwrites the physics config file and must win
+      that conflict. Pick the section matching the body you actually installed.

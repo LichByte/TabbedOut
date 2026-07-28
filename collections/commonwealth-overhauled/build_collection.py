@@ -78,7 +78,11 @@ class NexusClient:
                 f"{resp.headers.get('X-RL-Daily-Remaining', 'unknown')}. Retry later."
             )
         if resp.status_code == 404:
-            raise BuildError(f"Not found: {path} — the mod may have been hidden or deleted.")
+            raise BuildError(
+                f"Not found: {path} — the mod may have been hidden or deleted. "
+                "For an --adult build this is also what you get when adult content "
+                "is not enabled on the account owning the API key."
+            )
         resp.raise_for_status()
         return resp.json()
 
@@ -107,7 +111,9 @@ def pick_file(files: list[dict], mod_name: str) -> dict:
     return max(files, key=lambda f: f.get("uploaded_timestamp", 0))
 
 
-def check_name(expected: str, entry: dict, live: dict, problems: list[str]) -> None:
+def check_mod(
+    expected: str, entry: dict, live: dict, problems: list[str], warnings: list[str]
+) -> None:
     live_name = live.get("name") or ""
     needle = entry.get("expected_name_contains")
     if needle:
@@ -122,6 +128,43 @@ def check_name(expected: str, entry: dict, live: dict, problems: list[str]) -> N
         problems.append(f"mod {entry['mod_id']} ({live_name}): status is {live['status']!r}")
     if live.get("available") is False:
         problems.append(f"mod {entry['mod_id']} ({live_name}): no longer available")
+
+    # Cross-check our adult labelling against Nexus'. The two mismatch directions
+    # are not equally bad: an unlabelled adult mod would ship in the SFW build,
+    # which is the whole thing this flag exists to prevent.
+    live_adult = live.get("contains_adult_content")
+    declared = bool(entry.get("adult", False))
+    if live_adult is True and not declared:
+        problems.append(
+            f"mod {entry['mod_id']} ({live_name}): Nexus flags this as adult content "
+            "but the list does not mark it `adult: true` — it would ship in the SFW build"
+        )
+    elif live_adult is False and declared:
+        warnings.append(
+            f"mod {entry['mod_id']} ({live_name}): marked `adult: true` locally but "
+            "Nexus does not flag it. Harmless, but the label may be stale."
+        )
+
+
+def check_conflicts(mods: list[dict]) -> None:
+    """Reject a manifest that installs two mutually exclusive mods.
+
+    Body replacers and skin textures overwrite each other rather than merging,
+    so shipping two as required installs produces a broken game, not a choice.
+    """
+    known = {m["name"] for m in mods}
+    by_name = {m["name"]: m for m in mods}
+    for entry in mods:
+        for other in entry.get("conflicts_with", []):
+            if other not in known:
+                # Not an error: the overlay may name a mod only present in the
+                # base list, or vice versa, depending on how this was built.
+                continue
+            if not entry.get("optional", False) and not by_name[other].get("optional", False):
+                raise BuildError(
+                    f"{entry['name']} and {other} are mutually exclusive but both are "
+                    "required. Mark one `optional: true` or drop it."
+                )
 
 
 def build_mod_entry(entry: dict, domain: str, resolved: dict | None) -> dict:
@@ -198,6 +241,14 @@ def main() -> int:
     parser.add_argument("--modlist", type=Path, default=HERE / "modlist.yaml")
     parser.add_argument("--out", type=Path, default=HERE / "build")
     parser.add_argument(
+        "--adult",
+        action="store_true",
+        help="Merge the adult/body overlay. Builds a separately named collection "
+        "and zip so the SFW build is not overwritten. Requires adult content "
+        "enabled on the Nexus account owning the API key.",
+    )
+    parser.add_argument("--adult-modlist", type=Path, default=HERE / "modlist-adult.yaml")
+    parser.add_argument(
         "--offline",
         action="store_true",
         help="Skip the Nexus API. Emits placeholder file ids — structure only, not installable.",
@@ -214,8 +265,31 @@ def main() -> int:
     domain = meta["domain"]
     entries = spec["mods"]
 
+    if args.adult:
+        overlay = yaml.safe_load(args.adult_modlist.read_text())
+        entries = entries + overlay.get("mods", [])
+        spec["prerequisites"] = spec.get("prerequisites", []) + overlay.get(
+            "prerequisites", []
+        )
+        meta["name"] = meta["name"] + overlay.get("collection", {}).get("name_suffix", "")
+        print(f"Adult overlay merged: +{len(overlay.get('mods', []))} mods\n")
+
+    seen: dict[int, str] = {}
+    for entry in entries:
+        if entry["mod_id"] in seen:
+            print(
+                f"error: mod {entry['mod_id']} appears twice — "
+                f"{seen[entry['mod_id']]!r} and {entry['name']!r}",
+                file=sys.stderr,
+            )
+            return 1
+        seen[entry["mod_id"]] = entry["name"]
+
+    check_conflicts(entries)
+
     resolved_by_id: dict[int, dict] = {}
     problems: list[str] = []
+    warnings: list[str] = []
 
     if not args.offline:
         if not args.api_key:
@@ -231,7 +305,7 @@ def main() -> int:
             print(f"[{i}/{len(entries)}] {entry['name']} (mods/{mod_id})", flush=True)
             try:
                 info = client.mod_info(mod_id)
-                check_name(entry["name"], entry, info, problems)
+                check_mod(entry["name"], entry, info, problems, warnings)
                 file = pick_file(client.main_files(mod_id), entry["name"])
             except BuildError as exc:
                 problems.append(str(exc))
@@ -239,6 +313,11 @@ def main() -> int:
             resolved_by_id[mod_id] = {"info": info, "file": file}
         if client.remaining is not None:
             print(f"Nexus API requests remaining today: {client.remaining}")
+
+    if warnings:
+        print("\nWarnings:", file=sys.stderr)
+        for w in warnings:
+            print(f"  - {w}", file=sys.stderr)
 
     if problems:
         print("\nProblems found:", file=sys.stderr)
@@ -270,18 +349,25 @@ def main() -> int:
     }
 
     args.out.mkdir(parents=True, exist_ok=True)
-    manifest = args.out / "collection.json"
+    # Name the loose manifest after the collection too, so an --adult build does
+    # not quietly overwrite the SFW one sitting next to it.
+    slug = re.sub(r"[^a-z0-9]+", "-", meta["name"].lower()).strip("-")
+    manifest = args.out / f"{slug}.json"
     manifest.write_text(json.dumps(collection, indent=2) + "\n")
 
-    slug = re.sub(r"[^a-z0-9]+", "-", meta["name"].lower()).strip("-")
     archive = args.out / f"{slug}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(manifest, "collection.json")
 
     required = sum(1 for m in collection["mods"] if not m["optional"])
+    adult = sum(1 for e in entries if e.get("adult"))
     print(f"\nWrote {manifest}")
     print(f"Wrote {archive}")
-    print(f"{len(collection['mods'])} mods ({required} required), {len(collection['modRules'])} ordering rules")
+    print(
+        f"{len(collection['mods'])} mods ({required} required), "
+        f"{len(collection['modRules'])} ordering rules"
+        + (f", {adult} adult" if adult else "")
+    )
     if args.offline:
         print("\nOFFLINE BUILD — every fileId is 0. Re-run with an API key before importing.")
     return 0
