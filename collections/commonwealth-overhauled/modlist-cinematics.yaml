@@ -1,0 +1,94 @@
+# Commonwealth Overhauled — cinematics / screenarchery overlay
+#
+# Opt-in. Merged only when you ask for it:
+#
+#     python3 ../build_collection.py . --overlay cinematics
+#
+# Camera, posing and capture tooling. Stacks with the adult overlay if you want
+# both — each overlay adds its own name suffix, so the builds stay separate:
+#
+#     python3 ../build_collection.py . --overlay cinematics --overlay adult
+#
+# NOT included: the recorder. Nothing in the Creation Engine records video —
+# that is OBS. These mods get you a controllable camera and a clean frame.
+
+collection:
+  name_suffix: " (Cinematics)"
+
+prerequisites:
+  - name: A screen recorder
+    url: https://obsproject.com/
+    notes: >
+      OBS Studio, or ShadowPlay if you are on NVIDIA. Note that free-camera and
+      time-freeze modes keep the recorder rolling while the game is paused —
+      trim in post.
+
+  - name: ENB or ReShade (optional)
+    url: http://enbdev.com/
+    notes: >
+      For depth of field and grading. Distributed from enbdev.com rather than
+      Nexus, so it cannot be a collection entry.
+
+mods:
+  - name: FO4 Photo Mode
+    mod_id: 49997
+    phase: 2
+    category: Cinematics
+    rules:
+      after:
+        - Mod Configuration Menu
+    notes: >
+      Photo mode from the pause menu or a hotkey: FOV for close-ups or vistas,
+      camera roll and tilt, depth of field, freeze time and a time multiplier.
+      Requires F4SE; MCM is what lets you bind the hotkeys.
+
+      Chosen over powerofthree's Photo Mode (mods/88106) because that one
+      targets the NG/AE build and this collection targets 1.10.163. If you moved
+      to next-gen, swap them.
+
+  - name: Oh Snap
+    mod_id: 82833
+    phase: 2
+    category: Cinematics
+    rules:
+      after:
+        - FO4 Photo Mode
+    notes: >
+      One hotkey to toggle free camera, suspend all animations and hide the HUD.
+      Complements Photo Mode rather than duplicating it: this is the fast
+      "freeze exactly here and clear the frame" key.
+
+  - name: Custom Camera
+    mod_id: 29905
+    phase: 2
+    category: Cinematics
+    notes: >
+      MCM control over the third-person camera — offsets, distance and FOV per
+      state. Vanilla's over-shoulder framing is tight and unflattering for
+      anything you intend to record.
+
+  - name: LC's Screenshot Assistant
+    mod_id: 13004
+    phase: 2
+    category: Cinematics
+    optional: true
+    notes: >
+      Console-driven helpers for lighting and posing a shot. Optional — overlaps
+      with Photo Mode, but it exposes some things Photo Mode does not.
+
+  - name: Screenshot Helper Hotkeys (MCM)
+    mod_id: 26799
+    phase: 2
+    category: Cinematics
+    optional: true
+    rules:
+      after:
+        - Mod Configuration Menu
+    notes: >
+      Binds the fiddly screenshot console commands (tm, tfc, tcl, tdetect) to
+      keys. Optional and mostly redundant if you have Oh Snap; useful if you
+      want finer-grained control than one toggle.
+
+# Note: Place Everywhere (mods/9424) is already in the base list and doubles as
+# a set-dressing tool — free placement plus rotation is how you build a scene
+# rather than find one. Not repeated here; the builder rejects duplicate ids.

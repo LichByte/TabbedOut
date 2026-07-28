@@ -14,6 +14,9 @@ export NEXUS_API_KEY=...      # nexusmods.com/users/myaccount?tab=api
 python3 ../build_collection.py .
 ```
 
+Add `--overlay cinematics` for the
+[screenarchery/animation overlay](#cinematics-overlay).
+
 Every `mod_id` was verified against a live Nexus URL, and the builder re-checks
 each one at build time — a renamed, hidden or deleted mod fails the build rather
 than shipping broken.
@@ -173,6 +176,46 @@ geometry, Skyland supplies textures over it.
 
 No ENB. It is where the remaining framerate goes; add one once the base list is
 confirmed stable.
+
+## Cinematics overlay
+
+Opt-in, in [`modlist-cinematics.yaml`](modlist-cinematics.yaml). Twelve mods for
+composing and capturing shots, plus the animation plumbing that makes custom
+animations play correctly.
+
+```bash
+python3 ../build_collection.py . --overlay cinematics
+```
+
+**The recorder is not a mod.** Nothing in Skyrim's engine captures video — that
+is OBS or ShadowPlay. These mods give you a controllable camera, posable actors
+and a clean frame; the capture is external. Likewise ENB/ReShade, which is where
+real depth of field comes from, ships from enbdev.com rather than Nexus and so
+can't be a collection entry.
+
+| Mod | Role |
+|---|---|
+| [Photo Mode](https://www.nexusmods.com/skyrimspecialedition/mods/91701) | The centrepiece — grids, FOV, roll, frozen time, weather, expressions, actor positioning |
+| [SmoothCam](https://www.nexusmods.com/skyrimspecialedition/mods/41252) | Frame-interpolated camera; vanilla's snapping reads as cheap on video |
+| [Improved Camera SE](https://www.nexusmods.com/skyrimspecialedition/mods/93962) | Real first-person body; handles its own SmoothCam conflicts |
+| [Poser Hotkeys Plus](https://www.nexusmods.com/skyrimspecialedition/mods/17743) | Pose playback with search and frame stepping |
+| [Additional Expressions Project](https://www.nexusmods.com/skyrimspecialedition/mods/72337) | Expression presets for the poser menu |
+| [Conditional Expressions Extended](https://www.nexusmods.com/skyrimspecialedition/mods/91438) | Faces stop going blank between scripted beats |
+| [Expressive Facial Animation](https://www.nexusmods.com/skyrimspecialedition/mods/19181) F / [M](https://www.nexusmods.com/skyrimspecialedition/mods/19532) | Wider, less rubbery morph range |
+| [Animation Motion Revolution](https://www.nexusmods.com/skyrimspecialedition/mods/50258) | Fixes displacement mismatch — without it, travelling animations slide |
+| [EVG Animated Traversal](https://www.nexusmods.com/skyrimspecialedition/mods/63232) | Vaulting, ladders, cramped-gap traversal |
+| [Goetia Animations](https://www.nexusmods.com/skyrimspecialedition/mods/68625) *(optional)* | Male locomotion replacement; take the OAR file |
+| [Pandora Behaviour Engine](https://www.nexusmods.com/skyrimspecialedition/mods/133232) *(optional)* | Faster Nemesis replacement — see below |
+
+**Poser Hotkeys ships no poses.** It is a player for pose packs you add
+separately, most of which live off-Nexus.
+
+**Pandora vs Nemesis.** Pandora does the same job far faster and is backwards
+compatible with Nemesis and FNIS patches — which matters here, because this
+overlay means re-running the behaviour engine constantly. It is optional and off
+by default, and encoded as `conflicts_with` Nemesis: run one, never both. If you
+switch, disable Nemesis in the base list. The builder will reject a manifest
+where both are required.
 
 ## Load order: what actually matters
 
