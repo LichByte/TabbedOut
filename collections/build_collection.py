@@ -92,6 +92,19 @@ class NexusClient:
     def mod_info(self, mod_id: int) -> dict:
         return self._get(f"/games/{self.game}/mods/{mod_id}.json")
 
+    def game_categories(self) -> dict[int, str]:
+        payload = self._get(f"/games/{self.game}.json")
+        return {c["category_id"]: c["name"] for c in payload.get("categories", [])}
+
+    def tracked_mods(self) -> list[int]:
+        """Mod ids the API key's account tracks, filtered to this game."""
+        payload = self._get("/user/tracked_mods.json")
+        return [m["mod_id"] for m in payload if m.get("domain_name") == self.game]
+
+    def updated_mods(self, period: str = "1w") -> list[int]:
+        payload = self._get(f"/games/{self.game}/mods/updated.json", period=period)
+        return [m["mod_id"] for m in payload]
+
     def main_files(self, mod_id: int) -> list[dict]:
         payload = self._get(f"/games/{self.game}/mods/{mod_id}/files.json", category="main")
         return payload.get("files", [])

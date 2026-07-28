@@ -58,6 +58,58 @@ Not warnings — hard failures, because each of these ships something broken:
   leak into the SFW build. The reverse only warns.
 - **A dangling ordering rule** naming a mod that isn't in the list.
 
+## Scaling to a large list
+
+Hand-curation is fine at 40 mods and impossible at 1000. The bottleneck is not
+typing — it is **verification**. An unverified mod id is a broken collection
+entry, and `build_collection.py` rejects those by design.
+
+[`bulk_add.py`](bulk_add.py) flips the direction: you supply mod ids, and every
+name, author, category and adult flag comes back from the Nexus API. Entries are
+correct by construction, so bulk additions cannot fabricate anything.
+
+```bash
+export NEXUS_API_KEY=...
+
+# from an id list exported from an existing load order
+python3 bulk_add.py skyrim-se-overhauled --ids-file ids.txt --out modlist-bulk.yaml
+
+# from mods you track on Nexus — track a few hundred, then generate
+python3 bulk_add.py skyrim-se-overhauled --from-tracked --out modlist-bulk.yaml
+
+# enumerate recent activity, then prune by hand
+python3 bulk_add.py skyrim-se-overhauled --from-updated --period 1m --limit 200
+```
+
+Ids already in the collection are skipped, so it is safe to re-run as the list
+grows. Adult-flagged mods are dropped unless you pass `--include-adult`, so they
+cannot land in a base list by accident.
+
+**It does not curate.** Everything lands at phase 2 with a `TODO curate` note.
+It cannot tell you that two mods conflict, which of three body replacers to
+pick, or what belongs in which phase. That is the honest division: the API can
+verify, only a person can curate.
+
+### What actually bites at 1000 mods
+
+- **Not the plugin limit.** Skyrim's 254-plugin cap counts only full ESPs.
+  ESL-flagged plugins get 4096 separate slots, and texture, mesh and animation
+  replacers carry no plugin at all — most of a large list is those. Check the
+  ESL flag as you go rather than discovering the ceiling at mod 300.
+- **Patches, not mods.** Past a few hundred, most additions are compatibility
+  patches between things you already have. Budget for a Bashed/Smashed patch and
+  real xEdit conflict resolution; neither is optional at that size.
+- **Tool runtime.** DynDOLOD and Nemesis go from minutes to a long coffee break,
+  and you re-run them on every change.
+- **Distribution.** Nexus Collections handle large lists, but most 1000+ lists
+  ship as [Wabbajack](https://www.wabbajack.org/) installers instead, because
+  they can carry the patches, INI edits and generated LOD output that a
+  collection manifest cannot.
+
+Realistically a 1000-mod list is months of work and is why the big ones
+(Nolvus, Lorerim, Living Skyrim) are long-running projects with teams. The
+tooling here removes the verification tax; it does not remove the curation.
+
 ## Adding a collection
 
 Create a directory with a `modlist.yaml`. The `collection.domain` field sets the
