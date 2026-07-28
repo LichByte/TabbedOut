@@ -1,0 +1,472 @@
+# Skyrim Reforged — a full-overhaul Skyrim Special Edition collection
+#
+# Same shape as commonwealth-overhauled: this file is the source of truth, and
+# ../build_collection.py resolves it against the Nexus API.
+#
+#     python3 ../build_collection.py .
+#
+# Every `mod_id` was verified against a live
+# nexusmods.com/skyrimspecialedition/mods/<id> URL. The builder re-verifies each
+# one at build time, so a renamed, hidden or deleted mod fails the build.
+#
+# Targets game version 1.6.1170 — see README.md for why, and what it costs.
+
+collection:
+  name: Skyrim Reforged
+  domain: skyrimspecialedition
+  author: ""
+  description: |
+    A full overhaul of Skyrim Special Edition: a stability and framework
+    foundation, engine and bug fixes, SkyUI, modernised third-person combat,
+    reworked perks/magic/races, three large voiced content mods, and a
+    texture/lighting/weather pass.
+
+    Built for game version 1.6.1170. F4SE's counterpart SKSE64 and a couple of
+    redistributables must be installed by hand first — see README.md.
+  game_versions:
+    - 1.6.1170
+  recommend_new_profile: true
+
+prerequisites:
+  - name: Skyrim Script Extender (SKSE64)
+    url: https://skse.silverlock.org/
+    notes: >
+      Get the build matching 1.6.1170 exactly — SKSE is version-locked and a
+      mismatch fails to launch rather than degrading. Extract the loose files
+      into the Skyrim SE root folder (next to SkyrimSE.exe) and always launch
+      via skse64_loader.exe. Nothing below works without this.
+
+  - name: Visual C++ 2019/2022 x64 Redistributable
+    url: https://aka.ms/vs/17/release/vc_redist.x64.exe
+    notes: Required by SSE Engine Fixes and most other SKSE plugins.
+
+  - name: Stop Steam auto-updating Skyrim
+    notes: >
+      An update past 1.6.1170 breaks every SKSE plugin at once. Set Skyrim to
+      "Only update this game when I launch it", and for belt-and-braces mark
+      steamapps/appmanifest_489830.acf read-only.
+
+  - name: Mod Organizer 2 (recommended over Vortex for this list)
+    url: https://www.nexusmods.com/skyrimspecialedition/mods/6194
+    notes: >
+      Vortex can install this collection and that is the supported path. MO2 is
+      still the better tool for a list this size because its explicit left-pane
+      ordering makes texture and lighting overwrites visible rather than
+      implicit. If you go MO2, use the modlist here as the reference and install
+      by hand — collections are a Vortex feature.
+
+  - name: Downgrade patcher (only if you deliberately target 1.5.97)
+    url: https://www.nexusmods.com/skyrimspecialedition/mods/169962
+    notes: >
+      Not needed for this collection. Listed because some older SKSE plugins
+      never left 1.5.97 — if you are following a guide built for it, downgrade
+      first, and expect several mods in this list to need different files.
+
+# ---------------------------------------------------------------------------
+# Phase 0 — SKSE plumbing and frameworks
+# ---------------------------------------------------------------------------
+mods:
+  - name: Address Library for SKSE Plugins
+    mod_id: 32444
+    phase: 0
+    category: Framework
+    notes: >
+      Version-independent offsets so SKSE plugins survive game updates. Pick the
+      "All in one" / Anniversary Edition file for 1.6.1170, not the 1.5.97 one.
+
+  - name: SSE Engine Fixes (skse64 plugin)
+    mod_id: 17230
+    phase: 0
+    category: Framework
+    expected_name_contains: Engine Fixes
+    rules:
+      after:
+        - Address Library for SKSE Plugins
+    notes: >
+      The single most important stability mod. Fixes the false save-corruption
+      bug, re-enables achievements with mods, and raises several engine limits.
+      Part 2 of its download is a manual drop into the game root — read the mod
+      page, this is the step people miss.
+
+  - name: Crash Logger SSE AE VR - PDB support
+    mod_id: 59818
+    phase: 0
+    category: Framework
+    expected_name_contains: Crash Logger
+    notes: >
+      Writes a readable crash log instead of a silent desktop drop. Install it
+      before you need it — this is what anyone helping you will ask for first.
+
+  - name: powerofthree's Papyrus Extender
+    mod_id: 22854
+    phase: 0
+    category: Framework
+    notes: Extra Papyrus functions. A hard dependency of a lot of modern mods.
+
+  - name: powerofthree's Tweaks
+    mod_id: 51073
+    phase: 0
+    category: Framework
+    notes: Engine bug fixes and tuning knobs that pair with SSE Engine Fixes.
+
+  - name: PapyrusUtil SE - Modders Scripting Utility Functions
+    mod_id: 13048
+    phase: 0
+    category: Framework
+    expected_name_contains: PapyrusUtil
+    notes: Data storage functions for scripts. Dependency of many gameplay mods.
+
+  - name: ConsoleUtilSSE
+    mod_id: 24858
+    phase: 0
+    category: Framework
+    notes: Lets Papyrus scripts run console commands. Small, and widely depended on.
+
+  - name: Spell Perk Item Distributor (SPID)
+    mod_id: 36869
+    phase: 0
+    category: Framework
+    expected_name_contains: Spell Perk Item Distributor
+    notes: >
+      Distributes spells, perks, items and outfits to NPCs via config files
+      instead of edited records — so mods using it do not fight over the same
+      NPC entries. Half the modern ecosystem depends on it.
+
+  - name: Keyword Item Distributor (KID)
+    mod_id: 55728
+    phase: 0
+    category: Framework
+    expected_name_contains: Keyword Item Distributor
+    notes: The same idea as SPID, for keywords.
+
+  - name: Base Object Swapper
+    mod_id: 60805
+    phase: 0
+    category: Framework
+    notes: Swaps base objects and references via config files. Dependency of many visual mods.
+
+  - name: SkyUI
+    mod_id: 12604
+    phase: 0
+    category: Framework
+    notes: >
+      The interface overhaul, and the host for every mod configuration menu.
+      Effectively a framework, not a cosmetic choice.
+
+  - name: MCM Helper
+    mod_id: 53000
+    phase: 0
+    category: Framework
+    rules:
+      after:
+        - SkyUI
+    notes: Persistent MCM settings and hotkey registration. Required by several mods below.
+
+  - name: Open Animation Replacer
+    mod_id: 92109
+    phase: 0
+    category: Framework
+    notes: >
+      Condition-based animation replacement with an in-game editor. The modern
+      successor to DAR and a dependency of most current animation mods.
+
+  - name: RaceMenu
+    mod_id: 19080
+    phase: 0
+    category: Framework
+    notes: >
+      Character creation overhaul, and a framework other mods hook into for body
+      and overlay support.
+
+# ---------------------------------------------------------------------------
+# Phase 1 — fixes and performance
+# ---------------------------------------------------------------------------
+  - name: Unofficial Skyrim Special Edition Patch
+    mod_id: 266
+    phase: 1
+    category: Fixes
+    expected_name_contains: Unofficial Skyrim Special Edition Patch
+    notes: >
+      The baseline bug fix pack. Loads immediately after the DLC ESMs, at the
+      very top of the plugin order — almost everything else is built expecting
+      it to be there.
+
+  - name: Bug Fixes SSE
+    mod_id: 33261
+    phase: 1
+    category: Fixes
+    rules:
+      after:
+        - Unofficial Skyrim Special Edition Patch
+    notes: Engine-level fixes for bugs the Creation Kit cannot reach.
+
+  - name: Scrambled Bugs
+    mod_id: 43532
+    phase: 1
+    category: Fixes
+    rules:
+      after:
+        - Bug Fixes SSE
+    notes: More engine fixes, each individually toggleable in its config.
+
+  - name: Papyrus Tweaks NG
+    mod_id: 77779
+    phase: 1
+    category: Fixes
+    notes: >
+      Script engine optimisations that matter once a list gets script-heavy.
+      Replaces the old SSE Engine Fixes papyrus tweaks — leave those off.
+
+  - name: SSE Display Tweaks
+    mod_id: 34705
+    phase: 1
+    category: Performance
+    notes: >
+      Borderless fullscreen, proper frame limiting, and the physics fix that
+      keeps havok sane above 60 FPS. Skyrim's physics is framerate-coupled, so
+      this is not optional on a modern monitor.
+
+  - name: Skyrim Souls RE - Unpaused Menus
+    mod_id: 27859
+    phase: 1
+    category: Gameplay
+    optional: true
+    notes: >
+      Menus no longer pause the game. Genuinely changes difficulty — inventory
+      becomes a real decision during combat. Optional and off by default.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — combat and movement
+# ---------------------------------------------------------------------------
+  - name: True Directional Movement - Modernized Third Person Gameplay
+    mod_id: 51614
+    phase: 2
+    category: Combat
+    expected_name_contains: True Directional Movement
+    notes: >
+      360° movement, target lock and a headtracking overhaul. The backbone of a
+      modern third-person setup. Run Nemesis after installing it.
+
+  - name: Precision - Accurate Melee Collisions
+    mod_id: 72347
+    phase: 2
+    category: Combat
+    rules:
+      after:
+        - True Directional Movement - Modernized Third Person Gameplay
+    notes: >
+      Real havok collisions for melee — weapons hit what they visually touch,
+      and connect with terrain and multiple targets. Same author as TDM, so the
+      two are built to work together.
+
+  - name: Valhalla Combat
+    mod_id: 64741
+    phase: 2
+    category: Combat
+    rules:
+      after:
+        - Precision - Accurate Melee Collisions
+    notes: >
+      Modular, script-free combat overhaul — stamina-driven attacks, execution
+      moves and a real timed-block system. The collection's combat baseline.
+
+  - name: MCO ADXP - Modern Movement Combat Overhaul
+    mod_id: 117115
+    phase: 2
+    category: Combat
+    optional: true
+    rules:
+      after:
+        - Open Animation Replacer
+        - Valhalla Combat
+    notes: >
+      Replaces vanilla attack commitment with directional, animation-driven
+      combos. Optional and off by default because it needs its own animation
+      packs to be worth installing and substantially changes how the game feels.
+      Enable it and DMCO together or neither.
+
+  - name: Dodge - MCO (DMCO)
+    mod_id: 175129
+    phase: 2
+    category: Combat
+    optional: true
+    rules:
+      after:
+        - MCO ADXP - Modern Movement Combat Overhaul
+    notes: >
+      Dodge roll/step tuned for MCO. In Nemesis, TDM must be checked before
+      DMCO — wrong order produces a dodge that fires but does not move you.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — progression, magic, races
+# ---------------------------------------------------------------------------
+  - name: Ordinator - Perks of Skyrim
+    mod_id: 1137
+    phase: 2
+    category: Gameplay
+    notes: >
+      Rebuilds all eighteen perk trees. The collection's progression backbone.
+      Mutually exclusive with every other perk overhaul (Vokrii, SPERG, Adamant)
+      — pick one, never stack.
+
+  - name: Apocalypse - Magic of Skyrim
+    mod_id: 1090
+    phase: 2
+    category: Gameplay
+    notes: 155 new spells, balanced against vanilla rather than above it.
+
+  - name: Ordinator - Perks Grant Odin and Apocalypse Spells
+    mod_id: 52674
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Ordinator - Perks of Skyrim
+        - Apocalypse - Magic of Skyrim
+    notes: >
+      Hands out Apocalypse spells through Ordinator's perk trees so the two feel
+      like one system instead of two bolted together.
+
+  - name: Imperious - Races of Skyrim
+    mod_id: 1315
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Ordinator - Perks of Skyrim
+    notes: >
+      Real racial identity — three abilities and a unlockable power per race.
+      Same author as Ordinator, so they are designed to sit together.
+
+  - name: Andromeda - Unique Standing Stones of Skyrim
+    mod_id: 14910
+    phase: 2
+    category: Gameplay
+    rules:
+      after:
+        - Imperious - Races of Skyrim
+    notes: Two meaningful abilities per standing stone. Same author again.
+
+  - name: Alternate Start - Live Another Life - SSE
+    mod_id: 272
+    phase: 2
+    category: Gameplay
+    expected_name_contains: Alternate Start
+    notes: >
+      Skip Helgen and pick a backstory. Near-mandatory on a list this size — it
+      lets the game finish loading mods before the intro cart ride, which is
+      where heavily modded saves most often break. Loads at the very BOTTOM of
+      the plugin order.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — content
+# ---------------------------------------------------------------------------
+  - name: Legacy of the Dragonborn SSE
+    mod_id: 11802
+    phase: 2
+    category: Quests
+    expected_name_contains: Legacy of the Dragonborn
+    notes: >
+      A museum you fill across the whole game, plus its own questlines and
+      guild. Reframes every other mod's loot as something worth keeping. Large —
+      start a new game with it.
+
+  - name: Interesting NPCs SE (3DNPC)
+    mod_id: 29194
+    phase: 2
+    category: Quests
+    expected_name_contains: Interesting NPCs
+    notes: >
+      250+ fully voiced NPCs with real dialogue trees, quests and followers.
+      Over 80 voice actors. The single biggest character-depth mod available.
+
+  - name: Wyrmstooth
+    mod_id: 45565
+    phase: 2
+    category: Quests
+    notes: A DLC-sized island expansion — new quests, dungeons, music, voice acting.
+
+  - name: Legacy of the Dragonborn - Interesting NPCs Patch
+    mod_id: 39834
+    phase: 2
+    category: Quests
+    rules:
+      after:
+        - Legacy of the Dragonborn SSE
+        - Interesting NPCs SE (3DNPC)
+    notes: Adds 90+ Interesting NPCs displays to the museum. Install if you run both.
+
+# ---------------------------------------------------------------------------
+# Phase 2 — visuals
+# ---------------------------------------------------------------------------
+  - name: Static Mesh Improvement Mod - SMIM
+    mod_id: 659
+    phase: 2
+    category: Visuals
+    expected_name_contains: Static Mesh Improvement
+    notes: >
+      Replaces thousands of blocky vanilla meshes. Install BEFORE texture packs
+      so they can overwrite its textures while keeping its geometry.
+
+  - name: Skyland AIO
+    mod_id: 34179
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Static Mesh Improvement Mod - SMIM
+    notes: >
+      Landscape, architecture and dungeon textures in one consistent set, which
+      is why it beats stitching five texture mods together. Take the 2K package
+      unless you have VRAM to spare.
+
+  - name: Realistic Water Two SE (RWT)
+    mod_id: 2182
+    phase: 2
+    category: Visuals
+    expected_name_contains: Realistic Water Two
+    rules:
+      after:
+        - Skyland AIO
+
+  - name: Obsidian Weathers and Seasons
+    mod_id: 12125
+    phase: 2
+    category: Visuals
+    notes: >
+      ~90 weathers in 400 kB, and safe to add or remove mid-save. Mutually
+      exclusive with every other weather overhaul — Vivid, Cathedral, Azurite,
+      NAT. Run exactly one.
+
+  - name: Lux
+    mod_id: 43158
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Obsidian Weathers and Seasons
+    notes: >
+      Interior lighting rebuilt so light comes from actual sources. Mutually
+      exclusive with ELFX and Relighting Skyrim. Lux edits interior cells, so
+      check its patch list for anything else in your load order that does —
+      city overhauls especially.
+
+# ---------------------------------------------------------------------------
+# Phase 3 — run against the finished load order
+# ---------------------------------------------------------------------------
+  - name: Project New Reign - Nemesis Unlimited Behavior Engine
+    mod_id: 60033
+    phase: 3
+    category: Tools
+    expected_name_contains: Nemesis
+    rules:
+      after:
+        - True Directional Movement - Modernized Third Person Gameplay
+        - Precision - Accurate Melee Collisions
+        - Valhalla Combat
+    notes: >
+      Behaviour patcher, not a content mod — phase 3 because you RUN it after
+      everything else is installed. Launch it, tick every listed patch, hit
+      "Update Engine" then "Launch Nemesis Behavior Engine", and re-run it every
+      single time you add or remove an animation mod. Skipping this is why
+      "my dodge/attack does nothing" happens.

@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Build a Vortex-importable collection archive from modlist.yaml.
+"""Build a Vortex-importable collection archive from a modlist.
 
-Reads the curated list, resolves every mod against the Nexus API to pick up the
+Reads a curated list, resolves every mod against the Nexus API to pick up the
 current main file id and version, verifies that the live mod name still matches
 what the list expects, and writes collection.json plus a zip Vortex can import.
 
+Game-agnostic: the Nexus domain comes from the modlist's `collection.domain`,
+so the same builder serves fallout4, skyrimspecialedition and anything else.
+
     export NEXUS_API_KEY=...
-    python3 build_collection.py
+    python3 build_collection.py commonwealth-overhauled
+    python3 build_collection.py skyrim-se-overhauled
 
 Get an API key from https://www.nexusmods.com/users/myaccount?tab=api (Personal
 API Key, bottom of the page).
@@ -31,7 +35,6 @@ import requests
 import yaml
 
 API_ROOT = "https://api.nexusmods.com/v1"
-HERE = Path(__file__).resolve().parent
 
 # Vortex refuses to resolve a nexus source without a numeric fileId. This
 # sentinel makes an unresolved entry obvious rather than subtly wrong.
@@ -238,8 +241,22 @@ def install_instructions(spec: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--modlist", type=Path, default=HERE / "modlist.yaml")
-    parser.add_argument("--out", type=Path, default=HERE / "build")
+    parser.add_argument(
+        "collection",
+        type=Path,
+        nargs="?",
+        default=Path.cwd(),
+        help="Collection directory holding modlist.yaml. Defaults to the "
+        "current directory.",
+    )
+    parser.add_argument(
+        "--modlist",
+        type=Path,
+        help="Override the modlist path (default: <collection>/modlist.yaml).",
+    )
+    parser.add_argument(
+        "--out", type=Path, help="Override the output dir (default: <collection>/build)."
+    )
     parser.add_argument(
         "--adult",
         action="store_true",
@@ -247,7 +264,11 @@ def main() -> int:
         "and zip so the SFW build is not overwritten. Requires adult content "
         "enabled on the Nexus account owning the API key.",
     )
-    parser.add_argument("--adult-modlist", type=Path, default=HERE / "modlist-adult.yaml")
+    parser.add_argument(
+        "--adult-modlist",
+        type=Path,
+        help="Override the overlay path (default: <collection>/modlist-adult.yaml).",
+    )
     parser.add_argument(
         "--offline",
         action="store_true",
@@ -259,6 +280,23 @@ def main() -> int:
         help="Nexus personal API key. Defaults to $NEXUS_API_KEY.",
     )
     args = parser.parse_args()
+
+    root = args.collection
+    if not root.is_dir():
+        print(f"error: {root} is not a directory", file=sys.stderr)
+        return 2
+    args.modlist = args.modlist or root / "modlist.yaml"
+    args.adult_modlist = args.adult_modlist or root / "modlist-adult.yaml"
+    args.out = args.out or root / "build"
+    if not args.modlist.is_file():
+        print(f"error: no modlist at {args.modlist}", file=sys.stderr)
+        return 2
+    if args.adult and not args.adult_modlist.is_file():
+        print(
+            f"error: --adult given but no overlay at {args.adult_modlist}",
+            file=sys.stderr,
+        )
+        return 2
 
     spec = yaml.safe_load(args.modlist.read_text())
     meta = spec["collection"]
