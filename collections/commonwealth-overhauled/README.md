@@ -5,6 +5,8 @@ progression, combat, settlements, quests and visuals — plus the tooling to tur
 the curated list into a Vortex-importable collection archive.
 
 - [`modlist.yaml`](modlist.yaml) — the curated list. Source of truth.
+- [`modlist-adult.yaml`](modlist-adult.yaml) — opt-in adult/body overlay, off by
+  default. See [Adult and body mods](#adult-and-body-mods).
 - [`build_collection.py`](build_collection.py) — resolves it against the Nexus
   API and emits `collection.json` + a zip.
 
@@ -33,8 +35,16 @@ python3 build_collection.py
 Output lands in `build/`. Without a key, `--offline` emits the same structure
 with placeholder file ids — useful for reviewing the manifest, not installable.
 
-Roughly 110 API calls per build (two per mod). The free daily quota is 2,500,
-so this is not a concern unless you are looping it.
+Add `--adult` to merge the adult/body overlay. It writes a separately named
+collection and zip, so the two builds sit side by side rather than overwriting
+each other.
+
+Roughly 110 API calls per build (two per mod), or 130 with `--adult`. The free
+daily quota is 2,500, so this is not a concern unless you are looping it.
+
+Three things the builder refuses to emit rather than warn about: a mod whose
+Nexus name no longer matches the list, two mutually exclusive mods both marked
+required, and the same mod id appearing twice.
 
 ## Install it
 
@@ -196,6 +206,65 @@ performance than most texture packs.
 
 No ENB. On a list this heavy an ENB is where the remaining framerate goes; add
 one yourself once you have confirmed the base list is stable.
+
+## Adult and body mods
+
+Opt-in overlay in [`modlist-adult.yaml`](modlist-adult.yaml), built with
+`--adult`. Eight Nexus-hosted mods: a skeleton, an animation framework, body
+replacers, skin textures and physics. The base collection stays SFW — nothing
+here is merged unless you ask for it.
+
+```bash
+python3 build_collection.py --adult
+```
+
+### The site split, which decides everything
+
+Fallout 4's adult ecosystem lives on two sites, and **a Vortex collection can
+only reference Nexus-hosted files.** So the overlay splits along that line:
+
+| On Nexus — can be in the collection | On LoversLab — manual install only |
+|---|---|
+| [AAF](https://www.nexusmods.com/fallout4/mods/31304) (the framework) | Every AAF animation pack — Atomic Lust, Leito, SavageCabbage, Farelle |
+| [ZeX - ZaZ Extended Skeleton](https://www.nexusmods.com/fallout4/mods/36702) | [Fusion Girl](https://www.loverslab.com/) (female body) |
+| [Enhanced Vanilla Bodies](https://www.nexusmods.com/fallout4/mods/22110) | BodyTalk3 (male body) |
+| [Atomic Beauty](https://www.nexusmods.com/fallout4/mods/12406) *(optional)* | |
+| [Valkyr Face and Body Textures](https://www.nexusmods.com/fallout4/mods/3841) | |
+| [Lovely Skin Complex](https://www.nexusmods.com/fallout4/mods/29722) *(optional)* | |
+| [CBP Physics](https://www.nexusmods.com/fallout4/mods/39088) | |
+| [MTM Physics Preset](https://www.nexusmods.com/fallout4/mods/39195) | |
+
+The right-hand column is listed in the overlay's `prerequisites` and carried
+into the manifest's install instructions, the same way F4SE is. **AAF ships with
+no animations** — it is a player, not content. Installed alone it loads and does
+nothing, which is the single most common "AAF is broken" report.
+
+### Nexus account setup
+
+Adult content is hidden by default on new accounts. Enable it in
+[preferences](https://www.nexusmods.com/users/myaccount?tab=preferences), and
+complete age verification if you are in the UK or EU — Nexus gates adult
+downloads behind it to comply with the Online Safety Act and Digital Services
+Act. Until that is done, the API returns 404 for every mod in the overlay and
+`--adult` fails on the first lookup. The builder's 404 message says so.
+
+### One body, not several
+
+Body replacers overwrite each other rather than merging. Pick **one female body
+and one male body**, and rebuild every outfit in BodySlide against it — mixing
+bodies gives you neck seams and armour clipping, and the cause is not obvious
+when you hit it forty hours later.
+
+- **Female:** CBBE (already in the base list) · Atomic Beauty · Fusion Girl
+- **Male:** Enhanced Vanilla Bodies · BodyTalk3
+
+Same for skin textures: Valkyr *or* Lovely Skin Complex, not both. The overlay
+encodes these as `conflicts_with`, and the builder refuses to emit a manifest
+where two mutually exclusive mods are both required — so the defaults are
+CBBE + EVB + Valkyr, with the alternatives shipped as optional and off.
+
+If you switch female body, disable CBBE in the base list too. The builder cannot
+catch that one for you: it validates the manifest, not your Vortex profile.
 
 ## Load order: what actually matters
 
