@@ -1,0 +1,172 @@
+# Skyrim Reforged — extended visuals overlay
+#
+#     python3 ../build_collection.py . --overlay visuals
+#
+# The base list's visual tier is deliberately modest — five mods, no ENB — so it
+# stays cheap and conflict-free. This overlay is the heavy pass: a modern
+# rendering framework, parallax, exterior lighting, mountains and LOD.
+#
+# Stacks with the other overlays:
+#
+#     python3 ../build_collection.py . --overlay visuals --overlay adult
+
+collection:
+  name_suffix: " (Visuals)"
+
+prerequisites:
+  - name: A GPU with headroom
+    notes: >
+      Community Shaders plus complex parallax plus DynDOLOD output is a real
+      cost. If you are near your budget already, install this overlay in two
+      passes — rendering and lighting first, then textures — and check framerate
+      in Whiterun and the Rift between them. Those two areas break first.
+
+  - name: xLODGen (optional, run before DynDOLOD)
+    url: https://stepmodifications.org/forum/topic/13451-xlodgen-terrain-lod-beta-for-fnv-fo4-tes5-sse-tes4/
+    notes: >
+      Terrain LOD generation. Distributed from the STEP forums rather than
+      Nexus, so it cannot be a collection entry. Optional — DynDOLOD alone is a
+      large improvement — but the two together are what makes distant terrain
+      stop looking like flat mush.
+
+mods:
+  # -------------------------------------------------------------------------
+  # Rendering framework
+  # -------------------------------------------------------------------------
+  - name: Community Shaders
+    mod_id: 86492
+    phase: 0
+    category: Visuals
+    notes: >
+      Free, open-source, modular rendering framework built on SKSE — the modern
+      alternative to ENB, and the reason this overlay does not ship an ENB
+      preset. Much cheaper than ENB for comparable results, and unlike ENB it is
+      Nexus-hosted so it can actually live in a collection. Phase 0 because
+      other mods here check for its features.
+
+  - name: Complex Parallax Materials
+    mod_id: 95134
+    phase: 0
+    category: Visuals
+    rules:
+      after:
+        - Community Shaders
+    notes: >
+      Community Shaders feature adding optimised parallax with self-shadowing.
+      This is what makes stone and snow read as having depth rather than being
+      a flat photo of stone. Requires textures that ship parallax maps —
+      Majestic Mountains below does.
+
+  # -------------------------------------------------------------------------
+  # Landscape and architecture
+  # -------------------------------------------------------------------------
+  - name: Majestic Mountains
+    mod_id: 11052
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Skyland AIO
+    notes: >
+      Complete mountain rework — meshes and textures, with lighting retuned to
+      sit properly in the day/night cycle rather than glowing at dusk. Mountains
+      are most of Skyrim's skyline, so this changes more of the frame than its
+      description suggests. Also supplies the road textures Blended Roads uses.
+
+  - name: Blended Roads
+    mod_id: 8834
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Majestic Mountains
+    notes: >
+      Roads blend into surrounding terrain instead of ending at a hard seam.
+      Takes its textures from Majestic Mountains, so install that first.
+
+  # -------------------------------------------------------------------------
+  # Lighting
+  # -------------------------------------------------------------------------
+  - name: Lux Orbis
+    mod_id: 56095
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Lux
+    notes: >
+      Exterior artificial lighting — the outdoor counterpart to Lux in the base
+      list, which only handles interiors. Same author, designed to pair. Its
+      FOMOD carries patches for a lot of modded content; walk through it rather
+      than clicking past.
+
+  - name: Lux Via
+    mod_id: 63588
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Lux Orbis
+        - Blended Roads
+    notes: >
+      Lights and dresses roads, paths and bridges. Includes plugins to manage
+      Blended Roads texture sets, so install it after that.
+
+  - name: Embers XD
+    mod_id: 37085
+    phase: 2
+    category: Visuals
+    rules:
+      after:
+        - Lux Orbis
+    notes: >
+      Fire and ember effects rebuilt. Has explicit Lux Orbis fixes in its plugin
+      set and flame styles for Community Shaders, so it slots into this exact
+      stack cleanly. Fires are everywhere in Skyrim interiors — this is a bigger
+      visual change than it sounds.
+
+  # -------------------------------------------------------------------------
+  # Faces
+  # -------------------------------------------------------------------------
+  - name: High Poly NPC Overhaul - Resources
+    mod_id: 42768
+    phase: 2
+    category: Visuals
+    notes: Shared assets for the overhaul below. Install first.
+
+  - name: High Poly NPC Overhaul - Skyrim Special Edition 2.0 (All Vanilla NPCs)
+    mod_id: 44155
+    phase: 2
+    category: Visuals
+    expected_name_contains: High Poly NPC Overhaul
+    rules:
+      after:
+        - High Poly NPC Overhaul - Resources
+    notes: >
+      1000+ vanilla NPCs on high-poly head meshes. Ships FaceGen data only — no
+      meshes or textures of its own — so it inherits whatever body and skin you
+      have installed. That is precisely why it composes with the adult overlay
+      instead of fighting it.
+
+  # -------------------------------------------------------------------------
+  # LOD — run last
+  # -------------------------------------------------------------------------
+  - name: DynDOLOD 3 Alpha
+    mod_id: 68518
+    phase: 3
+    category: Tools
+    expected_name_contains: DynDOLOD
+    rules:
+      after:
+        - Majestic Mountains
+        - Lux Via
+        - Embers XD
+    notes: >
+      Generates distant object and tree LOD from your actual load order. Phase 3
+      because you RUN it after everything is installed — like Nemesis, it is a
+      tool, and its output is a mod you then enable.
+
+      Still labelled Alpha, but it has been the community standard for years and
+      DynDOLOD 2 (mods/32382) is the legacy branch. Re-run it whenever you add
+      anything that changes the worldspace, or distant terrain will disagree
+      with what is actually there.

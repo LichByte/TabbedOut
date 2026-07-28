@@ -14,8 +14,13 @@ export NEXUS_API_KEY=...      # nexusmods.com/users/myaccount?tab=api
 python3 ../build_collection.py .
 ```
 
-Add `--overlay cinematics` for the
-[screenarchery/animation overlay](#cinematics-overlay).
+Three opt-in overlays, stackable:
+[`visuals`](#visuals-overlay) (+10), [`cinematics`](#cinematics-overlay) (+12),
+[`adult`](#adult-overlay-ostim) (+20). Everything stacked is 83 mods.
+
+```bash
+python3 ../build_collection.py . --overlay visuals --overlay adult
+```
 
 Every `mod_id` was verified against a live Nexus URL, and the builder re-checks
 each one at build time — a renamed, hidden or deleted mod fails the build rather
@@ -177,6 +182,117 @@ geometry, Skyland supplies textures over it.
 No ENB. It is where the remaining framerate goes; add one once the base list is
 confirmed stable.
 
+## Visuals overlay
+
+The base list's visual tier is deliberately modest — five mods, no ENB — so it
+stays cheap and conflict-free. This is the heavy pass.
+
+```bash
+python3 ../build_collection.py . --overlay visuals
+```
+
+**[Community Shaders](https://www.nexusmods.com/skyrimspecialedition/mods/86492)
+is the headline.** It is a free, open-source, modular rendering framework built
+on SKSE — the modern alternative to ENB, much cheaper for comparable results,
+and unlike ENB it is Nexus-hosted so it can actually live in a collection. That
+is why this overlay ships no ENB preset.
+
+| Mod | Role |
+|---|---|
+| [Community Shaders](https://www.nexusmods.com/skyrimspecialedition/mods/86492) | Rendering framework; the ENB alternative |
+| [Complex Parallax Materials](https://www.nexusmods.com/skyrimspecialedition/mods/95134) | Parallax with self-shadowing — stone and snow gain real depth |
+| [Majestic Mountains](https://www.nexusmods.com/skyrimspecialedition/mods/11052) | Mountain rework; most of Skyrim's skyline |
+| [Blended Roads](https://www.nexusmods.com/skyrimspecialedition/mods/8834) | Roads blend into terrain instead of ending at a seam |
+| [Lux Orbis](https://www.nexusmods.com/skyrimspecialedition/mods/56095) | Exterior artificial lighting — the outdoor counterpart to Lux |
+| [Lux Via](https://www.nexusmods.com/skyrimspecialedition/mods/63588) | Roads, paths and bridges |
+| [Embers XD](https://www.nexusmods.com/skyrimspecialedition/mods/37085) | Fire and embers; has explicit Lux Orbis and CS support |
+| [High Poly NPC Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/44155) + [Resources](https://www.nexusmods.com/skyrimspecialedition/mods/42768) | 1000+ vanilla NPCs on high-poly heads |
+| [DynDOLOD 3](https://www.nexusmods.com/skyrimspecialedition/mods/68518) | Distant object and tree LOD — run last |
+
+Three things worth knowing:
+
+- **Lux, Lux Orbis and Lux Via are complementary, not alternatives.** Same
+  author. The base list's Lux does interiors only; Orbis does exterior
+  artificial lighting and Via does roads and bridges.
+- **High Poly NPC Overhaul ships FaceGen data only** — no meshes or textures. It
+  inherits whatever body and skin you have, which is exactly why it composes
+  with the adult overlay instead of fighting it.
+- **DynDOLOD is phase 3 because you *run* it**, like Nemesis. Re-run it after
+  anything that changes the worldspace. It is still labelled Alpha but has been
+  the community standard for years; DynDOLOD 2 is the legacy branch.
+
+This overlay costs real framerate. If you are near budget, install it in two
+passes — rendering and lighting first, then textures — and check Whiterun and
+the Rift between them. Those break first.
+
+## Adult overlay (OStim)
+
+```bash
+python3 ../build_collection.py . --overlay adult
+```
+
+**Built on OStim Standalone rather than SexLab, and that choice is the whole
+reason this overlay can exist.** SexLab and its animation packs are
+LoversLab-only, so a SexLab list would be almost entirely manual installs — the
+same wall the Fallout 4 adult overlay hits. Much of the OStim ecosystem is
+Nexus-hosted, so most of it fits in a collection.
+
+Twenty mods in four layers:
+
+**Dependencies** OStim needs that the base list doesn't already have —
+[XPMSSE](https://www.nexusmods.com/skyrimspecialedition/mods/1988) (extended
+skeleton, the Skyrim equivalent of ZeX),
+[JContainers SE](https://www.nexusmods.com/skyrimspecialedition/mods/16495),
+[Mfg Fix](https://www.nexusmods.com/skyrimspecialedition/mods/11669) (facial
+expressions — without it faces stay blank through every scene). SKSE, Nemesis,
+SkyUI, Address Library, ConsoleUtilSSE, PapyrusUtil and RaceMenu are already
+there.
+
+**Framework** —
+[OStim Standalone](https://www.nexusmods.com/skyrimspecialedition/mods/98163).
+
+**Body** —
+[CBBE](https://www.nexusmods.com/skyrimspecialedition/mods/198) →
+[CBBE 3BA](https://www.nexusmods.com/skyrimspecialedition/mods/30174) →
+[Settings Loader](https://www.nexusmods.com/skyrimspecialedition/mods/56875),
+plus [BodySlide](https://www.nexusmods.com/skyrimspecialedition/mods/201) at
+phase 3. Note 3BA sits **on top of** CBBE rather than replacing it — install
+CBBE first and let 3BA overwrite. The
+[SFW edition](https://www.nexusmods.com/skyrimspecialedition/mods/74257) is
+listed optional-and-off purely so the mutual exclusivity is explicit.
+
+**Physics** —
+[CBPC](https://www.nexusmods.com/skyrimspecialedition/mods/21224) for body,
+[FSMP](https://www.nexusmods.com/skyrimspecialedition/mods/57339) for cloth and
+hair. They coexist; the usual split is SMP for cloth, CBPC for body. **FSMP
+loaded before 3BA causes permanently jittery physics** — the ordering rules
+encode this.
+
+**Content and scene behaviour** —
+[OSTEM animations](https://www.nexusmods.com/skyrimspecialedition/mods/105849),
+[Stage Flow](https://www.nexusmods.com/skyrimspecialedition/mods/183299),
+[Sequential Stage Playback](https://www.nexusmods.com/skyrimspecialedition/mods/173926),
+[Post-Scene Aftercare](https://www.nexusmods.com/skyrimspecialedition/mods/166148),
+[Social Consequences](https://www.nexusmods.com/skyrimspecialedition/mods/167220)
+(NPCs react to what they witness),
+[Dynamic Dialogue Framework](https://www.nexusmods.com/skyrimspecialedition/mods/185024),
+plus three optional extras.
+
+### Two steps that are not optional
+
+1. **Re-run Nemesis** with the OStim patches ticked. Scenes that start and
+   instantly end, or actors that T-pose, are almost always a missing Nemesis run.
+2. **Build everything in BodySlide** against the 3BA preset with *Build Morphs*
+   ticked. Skipping the morphs checkbox is why bodies ignore their sliders.
+
+### Nexus account setup
+
+Adult content is hidden by default. Enable it in
+[preferences](https://www.nexusmods.com/users/myaccount?tab=preferences) and
+complete age verification if you are in the UK or EU. Until then the API 404s
+every mod in this overlay and the build fails on the first lookup — the
+builder's 404 message says so.
+
 ## Cinematics overlay
 
 Opt-in, in [`modlist-cinematics.yaml`](modlist-cinematics.yaml). Twelve mods for
@@ -240,15 +356,16 @@ LOOT gets most of it. Three it will not reliably handle:
 
 ## Deliberately not included
 
-- **An ENB preset.** See above.
-- **Majestic Mountains and JK's Skyrim.** Both are excellent and both would
-  normally be here; neither mod id could be confirmed against a live Nexus URL
-  during curation, and the builder rejects unverified entries by design. Add
-  them by hand — grab the id from the URL and append to `modlist.yaml`.
-- **Body/adult mods.** The Fallout 4 collection has an
-  [opt-in overlay](../commonwealth-overhauled/README.md#adult-and-body-mods) for
-  this; nothing equivalent is set up here yet. Same site-split constraint would
-  apply — CBBE/3BA and BodySlide are on Nexus, most animation content is not.
+- **An ENB preset.** The [visuals overlay](#visuals-overlay) uses Community
+  Shaders instead — cheaper, and Nexus-hosted so it can be a collection entry.
+  Add an ENB yourself if you prefer it, once the base list is stable.
+- **JK's Skyrim.** Belongs here, but its mod id could not be confirmed against a
+  live Nexus URL during curation and the builder rejects unverified entries by
+  design. Add it by hand — grab the id from the URL and append to
+  `modlist.yaml`. (Majestic Mountains was in this list previously; it is now
+  verified and in the visuals overlay.)
+- **SexLab and its ecosystem.** The [adult overlay](#adult-overlay-ostim) uses
+  OStim precisely because SexLab is LoversLab-only and could not be collected.
 - **Immersive Citizens.** Long-standing conflicts with city overhauls and other
   AI packages; not worth the patch burden on a list meant to just work.
 

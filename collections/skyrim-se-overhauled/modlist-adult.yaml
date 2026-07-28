@@ -1,0 +1,287 @@
+# Skyrim Reforged — adult / body overlay (OStim)
+#
+#     python3 ../build_collection.py . --overlay adult
+#
+# Built around OStim Standalone rather than SexLab, and that is the whole
+# reason this overlay can exist. SexLab and its animation packs are
+# LoversLab-only, so a SexLab-based list would be almost entirely manual
+# installs. Much of the OStim ecosystem is Nexus-hosted, so most of it can
+# actually live in a collection.
+#
+# Requires adult content enabled on the Nexus account whose API key builds this,
+# or the API returns 404 for these mods. See README.md.
+#
+# Install the visuals overlay too if you care how any of this looks:
+#
+#     python3 ../build_collection.py . --overlay visuals --overlay adult
+
+collection:
+  name_suffix: " (Adult)"
+
+prerequisites:
+  - name: Adult content enabled on your Nexus account
+    url: https://www.nexusmods.com/users/myaccount?tab=preferences
+    notes: >
+      Hidden by default on new accounts. Enable it in preferences and complete
+      age verification if you are in the UK or EU — Nexus gates adult downloads
+      behind it under the Online Safety Act and Digital Services Act. Until then
+      the API 404s every mod in this file and the build fails on the first
+      lookup.
+
+  - name: Re-run Nemesis after installing
+    notes: >
+      OStim registers behaviours through Nemesis, which is already in the base
+      list at phase 3. Install this overlay, then run Nemesis again with the
+      OStim patches ticked. Scenes that start and immediately end, or actors
+      that T-pose, are almost always a Nemesis run that did not happen.
+
+  - name: BodySlide build after installing
+    notes: >
+      Build your body and every outfit in BodySlide with "Build Morphs" ticked,
+      against the 3BA preset. Skipping the morphs checkbox is the usual cause of
+      bodies that ignore their sliders in game.
+
+  - name: LoversLab, for anything not here
+    url: https://www.loverslab.com/
+    notes: >
+      Some OStim addons and most SexLab-era content are LoversLab-only and
+      cannot be collection entries. Install those manually afterwards if you
+      want them.
+
+mods:
+  # -------------------------------------------------------------------------
+  # Phase 0 — OStim's hard dependencies not already in the base list
+  # -------------------------------------------------------------------------
+  - name: XP32 Maximum Skeleton Special Extended - XPMSSE
+    mod_id: 1988
+    phase: 0
+    category: Adult Framework
+    expected_name_contains: XP32 Maximum Skeleton
+    notes: >
+      Extended skeleton with the extra bones body physics and animations need.
+      The Skyrim equivalent of ZeX on Fallout 4, and a hard requirement for
+      OStim, 3BA and the physics mods below. Phase 0 — a skeleton installed
+      after the meshes referencing it does nothing.
+
+  - name: JContainers SE
+    mod_id: 16495
+    phase: 0
+    category: Adult Framework
+    notes: JSON-backed data structures for Papyrus. Hard OStim requirement.
+
+  - name: Mfg Fix
+    mod_id: 11669
+    phase: 0
+    category: Adult Framework
+    rules:
+      after:
+        - JContainers SE
+    notes: >
+      Fixes the `mfg` console command and facial expression handling. OStim
+      drives expressions through this — without it faces stay blank through
+      every scene.
+
+  - name: OStim Standalone - Advanced Adult Animation Framework
+    mod_id: 98163
+    phase: 0
+    category: Adult Framework
+    adult: true
+    expected_name_contains: OStim
+    rules:
+      after:
+        - XP32 Maximum Skeleton Special Extended - XPMSSE
+        - JContainers SE
+        - Mfg Fix
+    notes: >
+      The framework everything else here drives. Needs SKSE, Nemesis, SkyUI,
+      Address Library, ConsoleUtilSSE, PapyrusUtil and RaceMenu — all already in
+      the base list — plus the three above. Check its page for which animation
+      content is bundled versus separate; OSTEM below is the main Nexus-hosted
+      expansion.
+
+  # -------------------------------------------------------------------------
+  # Phase 2 — body
+  # -------------------------------------------------------------------------
+  - name: Caliente's Beautiful Bodies Enhancer -CBBE-
+    mod_id: 198
+    phase: 2
+    category: Adult Body
+    adult: true
+    expected_name_contains: Caliente
+    notes: >
+      The female body replacer and the de facto target for outfit conversions.
+      Mutually exclusive with UNP/BHUNP — one female body only, and every outfit
+      must be built against it.
+
+  - name: Caliente's Beautiful Bodies Enhancer -CBBE SFW Edition-
+    mod_id: 74257
+    phase: 2
+    category: Adult Body
+    optional: true
+    conflicts_with:
+      - Caliente's Beautiful Bodies Enhancer -CBBE-
+    expected_name_contains: SFW
+    notes: >
+      Censored variant. Optional and off — pointless alongside OStim, listed so
+      the mutual exclusivity is explicit rather than something you discover.
+
+  - name: CBBE 3BA (3BBB)
+    mod_id: 30174
+    phase: 2
+    category: Adult Body
+    adult: true
+    expected_name_contains: 3BA
+    rules:
+      after:
+        - Caliente's Beautiful Bodies Enhancer -CBBE-
+        - XP32 Maximum Skeleton Special Extended - XPMSSE
+    notes: >
+      Three-bone body built ON TOP of CBBE, not instead of it — improved mesh,
+      repainted weights, collision support. This is the body OStim scenes
+      actually want. Install CBBE first, then let this overwrite.
+
+  - name: CBBE 3BA (3BBB) - Settings Loader
+    mod_id: 56875
+    phase: 2
+    category: Adult Body
+    rules:
+      after:
+        - CBBE 3BA (3BBB)
+    notes: Loads 3BA physics/config presets without hand-editing its INI.
+
+  - name: BodySlide and Outfit Studio
+    mod_id: 201
+    phase: 3
+    category: Adult Body
+    rules:
+      after:
+        - CBBE 3BA (3BBB)
+    notes: >
+      Phase 3 — a tool you run against the finished load order, not a mod that
+      just installs. Build everything with "Build Morphs" ticked.
+
+  # -------------------------------------------------------------------------
+  # Phase 2 — physics
+  # -------------------------------------------------------------------------
+  - name: CBPC - CBP Physics with Collisions
+    mod_id: 21224
+    phase: 2
+    category: Adult Physics
+    expected_name_contains: CBPC
+    rules:
+      after:
+        - CBBE 3BA (3BBB)
+    notes: >
+      Cheap collision-capable body physics. Fast, and handles collisions out of
+      the box.
+
+  - name: FSMP - Faster HDT-SMP
+    mod_id: 57339
+    phase: 2
+    category: Adult Physics
+    expected_name_contains: HDT-SMP
+    rules:
+      after:
+        - CBPC - CBP Physics with Collisions
+        - CBBE 3BA (3BBB)
+    notes: >
+      Cloth and hair physics — capes, skirts, hair. Coexists with CBPC rather
+      than replacing it; the common split is SMP for cloth and CBPC for body.
+      Load order matters: FSMP before 3BA causes permanently jittery physics,
+      which is why both rules above exist.
+
+  # -------------------------------------------------------------------------
+  # Phase 2 — OStim content and scene behaviour
+  # -------------------------------------------------------------------------
+  - name: OSTEM - Animations for OStim SA
+    mod_id: 105849
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: The main Nexus-hosted animation expansion for OStim SA.
+
+  - name: Stage Flow for OStim Standalone
+    mod_id: 183299
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: Smoother transitions between scene stages instead of hard cuts.
+
+  - name: Sequential Stage Playback for OStim Standalone
+    mod_id: 173926
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - Stage Flow for OStim Standalone
+    notes: Plays stages in sequence rather than requiring manual advance.
+
+  - name: Post-Scene Aftercare for OStim Standalone
+    mod_id: 166148
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+
+  - name: Social Consequences for OStim Standalone
+    mod_id: 167220
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: NPCs react to what they witness. Adds consequence rather than just scenes.
+
+  - name: Dynamic Dialogue Framework for OStim Standalone
+    mod_id: 185024
+    phase: 2
+    category: Adult Content
+    adult: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: Contextual dialogue around scenes instead of silence.
+
+  - name: Simple Furniture Start for OStim Standalone
+    mod_id: 181557
+    phase: 2
+    category: Adult Content
+    adult: true
+    optional: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: Start scenes from beds and furniture directly.
+
+  - name: OSoundtracks Expansion Sounds - Ostim StandAlone
+    mod_id: 160883
+    phase: 2
+    category: Adult Content
+    adult: true
+    optional: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+
+  - name: OStim Standalone Improved Camera Configuration - Updated
+    mod_id: 118089
+    phase: 2
+    category: Adult Content
+    adult: true
+    optional: true
+    rules:
+      after:
+        - OStim Standalone - Advanced Adult Animation Framework
+    notes: >
+      Camera tuning for scenes. Genuinely worth it if you also run the
+      cinematics overlay — the two stack, and Improved Camera SE is in there.
