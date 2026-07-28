@@ -7,7 +7,7 @@ Vortex-importable archives.
 | Collection | Game | Base | Overlays |
 |---|---|---|---|
 | [commonwealth-overhauled](commonwealth-overhauled) | Fallout 4 | 56 | `adult` (+8), `cinematics` (+5) |
-| [skyrim-se-overhauled](skyrim-se-overhauled) | Skyrim Special Edition | 41 | `visuals` (+10), `cinematics` (+12), `adult` (+20) |
+| [skyrim-se-overhauled](skyrim-se-overhauled) | Skyrim Special Edition | 41 | `visuals` (+12), `cinematics` (+12), `adult` (+20) |
 
 ```bash
 pip install -r requirements.txt

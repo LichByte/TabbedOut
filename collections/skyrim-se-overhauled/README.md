@@ -15,8 +15,8 @@ python3 ../build_collection.py .
 ```
 
 Three opt-in overlays, stackable:
-[`visuals`](#visuals-overlay) (+10), [`cinematics`](#cinematics-overlay) (+12),
-[`adult`](#adult-overlay-ostim) (+20). Everything stacked is 83 mods.
+[`visuals`](#visuals-overlay) (+12), [`cinematics`](#cinematics-overlay) (+12),
+[`adult`](#adult-overlay-ostim) (+20). Everything stacked is 85 mods.
 
 ```bash
 python3 ../build_collection.py . --overlay visuals --overlay adult
@@ -60,13 +60,40 @@ launch it" and mark `steamapps/appmanifest_489830.acf` read-only.
 6. Run **Nemesis** — see below. Not optional.
 7. **Start a new game.**
 
-### A note on Vortex vs MO2
+## Mod Organizer 2 or Vortex?
 
-Collections are a Vortex feature, so that is the supported path here. For a list
-this size MO2 is still the better tool, because its explicit left-pane ordering
-makes texture and lighting overwrites *visible* rather than implicit — and this
-list has real overwrite chains (SMIM → Skyland, Obsidian → Lux). If you prefer
-MO2, use `modlist.yaml` as the reference and install by hand.
+**Recommendation: MO2, if you are running the overlays. Vortex if you are
+running the base list alone and want it installed for you.**
+
+The tension is real and worth stating plainly: collections are a **Vortex
+feature**. The zip this repo builds only imports into Vortex. Choosing MO2 means
+`modlist.yaml` becomes an install checklist rather than an installer — you get
+the curation, the ordering rules and the notes, but you install by hand.
+
+For the base list alone, that trade is not worth it. Vortex handles 41 mods
+fine, has LOOT built in, and one-click install is a real saving.
+
+Three things flip it once the overlays are in play:
+
+1. **Overwrite chains stop being incidental.** SMIM → Skyland → Majestic
+   Mountains, Lux → Lux Orbis → Lux Via → Embers XD, JK's before all the Lux
+   mods, CBBE → 3BA → BodySlide. MO2's left pane makes that order *visible and
+   draggable*; Vortex expresses the same thing as pairwise rules you resolve
+   through a dialog, which is correct but much harder to audit at a glance.
+2. **Three tools must run against the finished load order** — Nemesis,
+   BodySlide and DynDOLOD. All three read the *virtual* file layout, and all
+   three you will run repeatedly as you tweak. MO2's VFS presents tools exactly
+   the view the game gets, and capturing their output back as a mod is a
+   first-class workflow rather than something you arrange.
+3. **You are iterating.** Four overlays in, this is a list being edited, not
+   installed once. MO2 profiles let you keep a clean base and an
+   everything-enabled profile side by side and switch between them.
+
+If you go Vortex anyway, the collection installs and works — just budget time in
+the conflict-rules dialog, and read the ordering rules in the modlists as your
+guide to what the answers should be.
+
+Either way the curation is the deliverable; the manager is how you consume it.
 
 ## Run Nemesis, every time
 
@@ -203,14 +230,22 @@ is why this overlay ships no ENB preset.
 | [Complex Parallax Materials](https://www.nexusmods.com/skyrimspecialedition/mods/95134) | Parallax with self-shadowing — stone and snow gain real depth |
 | [Majestic Mountains](https://www.nexusmods.com/skyrimspecialedition/mods/11052) | Mountain rework; most of Skyrim's skyline |
 | [Blended Roads](https://www.nexusmods.com/skyrimspecialedition/mods/8834) | Roads blend into terrain instead of ending at a seam |
+| [JK's Skyrim](https://www.nexusmods.com/skyrimspecialedition/mods/6289) | All cities, towns and villages detailed; script-free |
+| [JK's Patch Collection](https://www.nexusmods.com/skyrimspecialedition/mods/154077) *(optional)* | Patches for JK's against other mods |
 | [Lux Orbis](https://www.nexusmods.com/skyrimspecialedition/mods/56095) | Exterior artificial lighting — the outdoor counterpart to Lux |
 | [Lux Via](https://www.nexusmods.com/skyrimspecialedition/mods/63588) | Roads, paths and bridges |
 | [Embers XD](https://www.nexusmods.com/skyrimspecialedition/mods/37085) | Fire and embers; has explicit Lux Orbis and CS support |
 | [High Poly NPC Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/44155) + [Resources](https://www.nexusmods.com/skyrimspecialedition/mods/42768) | 1000+ vanilla NPCs on high-poly heads |
 | [DynDOLOD 3](https://www.nexusmods.com/skyrimspecialedition/mods/68518) | Distant object and tree LOD — run last |
 
-Three things worth knowing:
+Four things worth knowing:
 
+- **JK's must load before the Lux family.** Lux and Lux Orbis both ship JK's
+  patches, and those patches have to win — tick the JK's options in both
+  FOMODs. Being script-free, JK's is safe to add or remove mid-save, which is
+  unusual for a city overhaul. It is mutually exclusive with Dawn of Skyrim,
+  Expanded Towns and Cities and The Great Cities unless you go hunting for
+  cross-patches.
 - **Lux, Lux Orbis and Lux Via are complementary, not alternatives.** Same
   author. The base list's Lux does interiors only; Orbis does exterior
   artificial lighting and Via does roads and bridges.
@@ -359,11 +394,6 @@ LOOT gets most of it. Three it will not reliably handle:
 - **An ENB preset.** The [visuals overlay](#visuals-overlay) uses Community
   Shaders instead — cheaper, and Nexus-hosted so it can be a collection entry.
   Add an ENB yourself if you prefer it, once the base list is stable.
-- **JK's Skyrim.** Belongs here, but its mod id could not be confirmed against a
-  live Nexus URL during curation and the builder rejects unverified entries by
-  design. Add it by hand — grab the id from the URL and append to
-  `modlist.yaml`. (Majestic Mountains was in this list previously; it is now
-  verified and in the visuals overlay.)
 - **SexLab and its ecosystem.** The [adult overlay](#adult-overlay-ostim) uses
   OStim precisely because SexLab is LoversLab-only and could not be collected.
 - **Immersive Citizens.** Long-standing conflicts with city overhauls and other

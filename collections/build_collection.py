@@ -203,22 +203,30 @@ def build_mod_entry(entry: dict, domain: str, resolved: dict | None) -> dict:
 
 
 def build_rules(mods: list[dict]) -> list[dict]:
+    """Turn per-mod `rules: {after: [...], before: [...]}` into Vortex modRules.
+
+    `before` exists for the overlay case: an overlay mod that has to load ahead
+    of something in the base list cannot be expressed as an `after` rule on the
+    base entry, because that rule would dangle whenever the overlay is not
+    merged.
+    """
     known = {m["name"] for m in mods}
     rules: list[dict] = []
     for entry in mods:
-        for other in entry.get("rules", {}).get("after", []):
-            if other not in known:
-                raise BuildError(
-                    f"{entry['name']}: 'after' rule references {other!r}, "
-                    "which is not in the modlist."
+        for rule_type in ("after", "before"):
+            for other in entry.get("rules", {}).get(rule_type, []):
+                if other not in known:
+                    raise BuildError(
+                        f"{entry['name']}: {rule_type!r} rule references {other!r}, "
+                        "which is not in the modlist."
+                    )
+                rules.append(
+                    {
+                        "source": {"name": entry["name"]},
+                        "type": rule_type,
+                        "reference": {"name": other},
+                    }
                 )
-            rules.append(
-                {
-                    "source": {"name": entry["name"]},
-                    "type": "after",
-                    "reference": {"name": other},
-                }
-            )
     return rules
 
 

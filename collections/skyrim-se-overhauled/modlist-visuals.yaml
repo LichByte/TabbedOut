@@ -85,6 +85,48 @@ mods:
       Takes its textures from Majestic Mountains, so install that first.
 
   # -------------------------------------------------------------------------
+  # Cities
+  # -------------------------------------------------------------------------
+  - name: JK's Skyrim
+    mod_id: 6289
+    phase: 2
+    category: Visuals
+    expected_name_contains: JK's Skyrim
+    rules:
+      after:
+        - Skyland AIO
+      before:
+        - Lux
+        - Lux Orbis
+        - Lux Via
+    notes: >
+      Lore-friendly, script-free overhaul of all five major cities, the towns and
+      the villages — clutter, signage and detail rather than new buildings or
+      quests. The single biggest change to how inhabited Skyrim feels.
+
+      It edits city cells heavily, so it must load BEFORE the Lux family: Lux
+      and Lux Orbis both ship JK's patches, and those patches have to win. Tick
+      the JK's options in both FOMODs. Being script-free, it is safe to add or
+      remove mid-save, unlike most city overhauls.
+
+      Mutually exclusive with other city overhauls — Dawn of Skyrim, Expanded
+      Towns and Cities, The Great Cities — unless you install the specific
+      cross-patches, which is a project in itself.
+
+  - name: JK's Skyrim Patch Collection
+    mod_id: 154077
+    phase: 2
+    category: Visuals
+    optional: true
+    rules:
+      after:
+        - JK's Skyrim
+    notes: >
+      Community patches for JK's against a long list of other mods. Optional
+      because which patches you need depends entirely on what else you run —
+      open its FOMOD and tick only what matches your load order.
+
+  # -------------------------------------------------------------------------
   # Lighting
   # -------------------------------------------------------------------------
   - name: Lux Orbis
@@ -161,6 +203,7 @@ mods:
         - Majestic Mountains
         - Lux Via
         - Embers XD
+        - JK's Skyrim
     notes: >
       Generates distant object and tree LOD from your actual load order. Phase 3
       because you RUN it after everything is installed — like Nemesis, it is a
