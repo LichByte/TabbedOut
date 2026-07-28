@@ -7,8 +7,8 @@ the curated list into a Vortex-importable collection archive.
 - [`modlist.yaml`](modlist.yaml) — the curated list. Source of truth.
 - [`modlist-adult.yaml`](modlist-adult.yaml) — opt-in adult/body overlay, off by
   default. See [Adult and body mods](#adult-and-body-mods).
-- [`build_collection.py`](build_collection.py) — resolves it against the Nexus
-  API and emits `collection.json` + a zip.
+- [`../build_collection.py`](../build_collection.py) — the shared builder;
+  resolves the list against the Nexus API and emits `collection.json` + a zip.
 
 ## Why it is built this way
 
@@ -18,7 +18,7 @@ profile. Here the list is a reviewable YAML file, and the manifest is generated
 from it. You can diff it, PR it, and rebuild it when mods update.
 
 The catch: a collection entry needs a **file id**, not just a mod id, and file
-ids change every time an author uploads. So `build_collection.py` looks up the
+ids change every time an author uploads. So the builder looks up the
 current main file for each mod at build time. Every `mod_id` in `modlist.yaml`
 was verified against a live Nexus URL, and the builder re-checks that the mod's
 name on Nexus still matches the list — if a mod is renamed, hidden or deleted,
@@ -27,9 +27,9 @@ the build fails instead of silently shipping a broken entry.
 ## Build it
 
 ```bash
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 export NEXUS_API_KEY=...      # nexusmods.com/users/myaccount?tab=api
-python3 build_collection.py
+python3 ../build_collection.py .
 ```
 
 Output lands in `build/`. Without a key, `--offline` emits the same structure
@@ -215,7 +215,7 @@ replacers, skin textures and physics. The base collection stays SFW — nothing
 here is merged unless you ask for it.
 
 ```bash
-python3 build_collection.py --adult
+python3 ../build_collection.py . --adult
 ```
 
 ### The site split, which decides everything
