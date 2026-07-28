@@ -4,21 +4,36 @@ Curated Nexus Mods collections defined as reviewable YAML rather than opaque
 Vortex profile exports, plus a shared builder that turns them into
 Vortex-importable archives.
 
-| Collection | Game | Mods |
-|---|---|---|
-| [commonwealth-overhauled](commonwealth-overhauled) | Fallout 4 | 56 (+8 in an opt-in adult overlay) |
-| [skyrim-se-overhauled](skyrim-se-overhauled) | Skyrim Special Edition | 41 |
+| Collection | Game | Base | Overlays |
+|---|---|---|---|
+| [commonwealth-overhauled](commonwealth-overhauled) | Fallout 4 | 56 | `adult` (+8), `cinematics` (+5) |
+| [skyrim-se-overhauled](skyrim-se-overhauled) | Skyrim Special Edition | 41 | `cinematics` (+12) |
 
 ```bash
 pip install -r requirements.txt
 export NEXUS_API_KEY=...      # nexusmods.com/users/myaccount?tab=api
 
 python3 build_collection.py commonwealth-overhauled
-python3 build_collection.py skyrim-se-overhauled
+python3 build_collection.py skyrim-se-overhauled --overlay cinematics
 ```
 
 Add `--offline` for a structure-only build with no API key — useful for
-reviewing a manifest, not installable. Add `--adult` where an overlay exists.
+reviewing a manifest, not installable.
+
+## Overlays
+
+An overlay is `modlist-<name>.yaml` in a collection directory, merged on top of
+the base list with `--overlay <name>`. They stack, and each contributes a name
+suffix so every combination lands in its own manifest and zip instead of
+overwriting the base build:
+
+```bash
+python3 build_collection.py commonwealth-overhauled --overlay cinematics --overlay adult
+# → commonwealth-overhauled-cinematics-adult.zip
+```
+
+Overlays carry their own `prerequisites`, so off-Nexus dependencies travel with
+the mods that need them. `--adult` is a legacy alias for `--overlay adult`.
 
 ## Why
 

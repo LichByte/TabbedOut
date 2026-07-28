@@ -258,16 +258,18 @@ def main() -> int:
         "--out", type=Path, help="Override the output dir (default: <collection>/build)."
     )
     parser.add_argument(
-        "--adult",
-        action="store_true",
-        help="Merge the adult/body overlay. Builds a separately named collection "
-        "and zip so the SFW build is not overwritten. Requires adult content "
-        "enabled on the Nexus account owning the API key.",
+        "--overlay",
+        action="append",
+        metavar="NAME",
+        help="Merge <collection>/modlist-NAME.yaml on top of the base list. "
+        "Repeatable. Each overlay contributes a name suffix, so the build lands "
+        "in its own manifest and zip rather than overwriting the base one.",
     )
     parser.add_argument(
-        "--adult-modlist",
-        type=Path,
-        help="Override the overlay path (default: <collection>/modlist-adult.yaml).",
+        "--adult",
+        action="store_true",
+        help="Alias for --overlay adult. Requires adult content enabled on the "
+        "Nexus account owning the API key.",
     )
     parser.add_argument(
         "--offline",
@@ -286,31 +288,37 @@ def main() -> int:
         print(f"error: {root} is not a directory", file=sys.stderr)
         return 2
     args.modlist = args.modlist or root / "modlist.yaml"
-    args.adult_modlist = args.adult_modlist or root / "modlist-adult.yaml"
     args.out = args.out or root / "build"
     if not args.modlist.is_file():
         print(f"error: no modlist at {args.modlist}", file=sys.stderr)
         return 2
-    if args.adult and not args.adult_modlist.is_file():
-        print(
-            f"error: --adult given but no overlay at {args.adult_modlist}",
-            file=sys.stderr,
-        )
-        return 2
+
+    overlay_names = list(args.overlay or [])
+    if args.adult and "adult" not in overlay_names:
+        overlay_names.append("adult")
+    overlay_paths = []
+    for name in overlay_names:
+        path = root / f"modlist-{name}.yaml"
+        if not path.is_file():
+            print(f"error: no overlay at {path}", file=sys.stderr)
+            return 2
+        overlay_paths.append(path)
 
     spec = yaml.safe_load(args.modlist.read_text())
     meta = spec["collection"]
     domain = meta["domain"]
     entries = spec["mods"]
 
-    if args.adult:
-        overlay = yaml.safe_load(args.adult_modlist.read_text())
+    for path in overlay_paths:
+        overlay = yaml.safe_load(path.read_text())
         entries = entries + overlay.get("mods", [])
         spec["prerequisites"] = spec.get("prerequisites", []) + overlay.get(
             "prerequisites", []
         )
         meta["name"] = meta["name"] + overlay.get("collection", {}).get("name_suffix", "")
-        print(f"Adult overlay merged: +{len(overlay.get('mods', []))} mods\n")
+        print(f"Overlay {path.name}: +{len(overlay.get('mods', []))} mods")
+    if overlay_paths:
+        print()
 
     seen: dict[int, str] = {}
     for entry in entries:

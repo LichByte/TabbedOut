@@ -7,6 +7,8 @@ the curated list into a Vortex-importable collection archive.
 - [`modlist.yaml`](modlist.yaml) — the curated list. Source of truth.
 - [`modlist-adult.yaml`](modlist-adult.yaml) — opt-in adult/body overlay, off by
   default. See [Adult and body mods](#adult-and-body-mods).
+- [`modlist-cinematics.yaml`](modlist-cinematics.yaml) — opt-in camera/posing
+  overlay. See [Cinematics overlay](#cinematics-overlay).
 - [`../build_collection.py`](../build_collection.py) — the shared builder;
   resolves the list against the Nexus API and emits `collection.json` + a zip.
 
@@ -35,9 +37,15 @@ python3 ../build_collection.py .
 Output lands in `build/`. Without a key, `--offline` emits the same structure
 with placeholder file ids — useful for reviewing the manifest, not installable.
 
-Add `--adult` to merge the adult/body overlay. It writes a separately named
-collection and zip, so the two builds sit side by side rather than overwriting
-each other.
+Overlays are opt-in and stack; each adds a name suffix so builds sit side by side
+rather than overwriting each other.
+
+```bash
+python3 ../build_collection.py . --overlay cinematics
+python3 ../build_collection.py . --overlay cinematics --overlay adult
+```
+
+`--adult` is an alias for `--overlay adult`.
 
 Roughly 110 API calls per build (two per mod), or 130 with `--adult`. The free
 daily quota is 2,500, so this is not a concern unless you are looping it.
@@ -265,6 +273,39 @@ CBBE + EVB + Valkyr, with the alternatives shipped as optional and off.
 
 If you switch female body, disable CBBE in the base list too. The builder cannot
 catch that one for you: it validates the manifest, not your Vortex profile.
+
+## Cinematics overlay
+
+Opt-in, in [`modlist-cinematics.yaml`](modlist-cinematics.yaml). Five mods for
+composing and capturing shots.
+
+```bash
+python3 ../build_collection.py . --overlay cinematics
+```
+
+**The recorder is not a mod** — nothing in the Creation Engine captures video.
+That is OBS or ShadowPlay. Same for ENB/ReShade, which ships from enbdev.com
+rather than Nexus and so can't be a collection entry.
+
+| Mod | Role |
+|---|---|
+| [FO4 Photo Mode](https://www.nexusmods.com/fallout4/mods/49997) | FOV, roll/tilt, depth of field, freeze time, time multiplier |
+| [Oh Snap](https://www.nexusmods.com/fallout4/mods/82833) | One key: free camera + suspend animations + hide HUD |
+| [Custom Camera](https://www.nexusmods.com/fallout4/mods/29905) | MCM control over third-person framing per state |
+| [LC's Screenshot Assistant](https://www.nexusmods.com/fallout4/mods/13004) *(optional)* | Console helpers for lighting and posing |
+| [Screenshot Helper Hotkeys](https://www.nexusmods.com/fallout4/mods/26799) *(optional)* | Binds tm/tfc/tcl/tdetect to keys |
+
+FO4 Photo Mode over [powerofthree's Photo Mode](https://www.nexusmods.com/fallout4/mods/88106)
+because that one targets the NG/AE build and this collection targets 1.10.163.
+Swap them if you move to next-gen.
+
+[Place Everywhere](https://www.nexusmods.com/fallout4/mods/9424) is already in
+the base list and doubles as a set-dressing tool — free placement plus rotation
+is how you build a scene rather than find one.
+
+For posing actors, AAF in the [adult overlay](#adult-and-body-mods) is also the
+general-purpose animation and pose player on Fallout 4 — it is not adult-only
+machinery, though its content largely is. The two overlays stack.
 
 ## Load order: what actually matters
 
