@@ -45,6 +45,14 @@ class BuildError(Exception):
     pass
 
 
+class NetworkError(BuildError):
+    """The API is unreachable, as opposed to one mod being wrong.
+
+    Kept distinct so the run aborts on the first failure instead of retrying
+    every mod in the list and printing the same diagnosis once per entry.
+    """
+
+
 def normalise(name: str) -> str:
     """Loose comparison key for mod titles.
 
@@ -71,7 +79,20 @@ class NexusClient:
         self.remaining: str | None = None
 
     def _get(self, path: str, **params: Any) -> Any:
-        resp = self.session.get(f"{API_ROOT}{path}", params=params, timeout=30)
+        try:
+            resp = self.session.get(f"{API_ROOT}{path}", params=params, timeout=30)
+        except requests.exceptions.ProxyError as exc:
+            raise NetworkError(
+                "Could not reach api.nexusmods.com — the proxy refused the tunnel.\n"
+                "  A sandboxed or corporate network may block the host outright. A valid "
+                "API key makes no difference when the CONNECT is rejected; run this from "
+                "a machine with direct access to Nexus.\n"
+                f"  Underlying error: {exc}"
+            ) from exc
+        except requests.exceptions.RequestException as exc:
+            raise NetworkError(
+                f"Network error talking to api.nexusmods.com: {exc}"
+            ) from exc
         self.remaining = resp.headers.get("X-RL-Daily-Remaining", self.remaining)
         if resp.status_code == 401:
             raise BuildError("Nexus rejected the API key (401). Check NEXUS_API_KEY.")
@@ -374,6 +395,10 @@ def main() -> int:
                 info = client.mod_info(mod_id)
                 check_mod(entry["name"], entry, info, problems, warnings)
                 file = pick_file(client.main_files(mod_id), entry["name"])
+            except NetworkError:
+                # Nothing else will succeed either — fail fast rather than
+                # repeating the same diagnosis for every remaining mod.
+                raise
             except BuildError as exc:
                 problems.append(str(exc))
                 continue
