@@ -23,6 +23,7 @@
 #include "window_hook.h"
 #include "config.h"
 #include "utils.h"
+#include "monitor.h"
 
 #include <d3d9.h>
 #include <cstdio>
@@ -82,48 +83,6 @@ static ShowWindow_t g_origShowWindow = nullptr;
 
 
 // ============================================================================
-// GetMonitorRect - Get the exact rectangle of the primary monitor
-//
-// In multi-monitor setups, we need the EXACT bounds of one monitor,
-// not the combined virtual screen. MonitorFromWindow finds which
-// monitor the game is on, and GetMonitorInfo gives us its bounds.
-// ============================================================================
-static void GetMonitorRect(HWND hwnd, RECT& outRect)
-{
-    // Find which monitor the window is on (fall back to primary)
-    HMONITOR hMon = nullptr;
-    if (hwnd)
-        hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
-    else
-        hMon = MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
-
-    MONITORINFO mi = {};
-    mi.cbSize = sizeof(mi);
-    if (hMon && GetMonitorInfoA(hMon, &mi))
-    {
-        outRect = mi.rcMonitor;  // Full monitor area (not work area)
-    }
-    else
-    {
-        // Fallback: assume primary monitor at (0,0)
-        outRect.left   = 0;
-        outRect.top    = 0;
-        outRect.right  = GetSystemMetrics(SM_CXSCREEN);
-        outRect.bottom = GetSystemMetrics(SM_CYSCREEN);
-    }
-}
-
-// Helper for INI hook (just needs width/height of primary monitor)
-static void GetPrimaryMonitorSize(int& width, int& height)
-{
-    RECT r;
-    GetMonitorRect(nullptr, r);
-    width  = r.right - r.left;
-    height = r.bottom - r.top;
-}
-
-
-// ============================================================================
 // MakeWindowBorderless - Strip borders and fill the screen
 // ============================================================================
 static void MakeWindowBorderless(HWND hwnd)
@@ -141,29 +100,15 @@ static void MakeWindowBorderless(HWND hwnd)
     if (cfg.bTopMost) exStyle |= WS_EX_TOPMOST;
     SetWindowLongA(hwnd, GWL_EXSTYLE, exStyle);
 
-    // Get the exact bounds of the PRIMARY monitor.
-    // We pass nullptr (not hwnd) because during window creation the
-    // game window may not be positioned on any monitor yet, and
-    // MonitorFromWindow would return an unpredictable result.
-    // nullptr causes GetMonitorRect to use MonitorFromPoint(0,0)
-    // which always returns the primary monitor.
-    int x, y, w, h;
-    if (cfg.iCustomWidth > 0 && cfg.iCustomHeight > 0)
-    {
-        x = 0;
-        y = 0;
-        w = cfg.iCustomWidth;
-        h = cfg.iCustomHeight;
-    }
-    else
-    {
-        RECT monRect;
-        GetMonitorRect(nullptr, monRect);
-        x = monRect.left;
-        y = monRect.top;
-        w = monRect.right - monRect.left;
-        h = monRect.bottom - monRect.top;
-    }
+    // Cover the monitor chosen by iMonitor (primary by default), sized by
+    // iCustomWidth/iCustomHeight if set. We pick the monitor from config
+    // rather than MonitorFromWindow because during creation the window
+    // may not be positioned on any monitor yet.
+    RECT target = Monitor::GetTargetRect();
+    int x = target.left;
+    int y = target.top;
+    int w = target.right - target.left;
+    int h = target.bottom - target.top;
 
     SetWindowPos(hwnd,
         cfg.bTopMost ? HWND_TOPMOST : HWND_TOP,
@@ -255,28 +200,20 @@ static UINT WINAPI Hook_GetPrivateProfileIntA(
                 return 0;  // Windowed mode
             }
 
-            // Force desktop resolution width
+            // Force the render width to match the window we'll create
             if (_stricmp(lpKeyName, "iSize W") == 0)
             {
-                int w, h;
-                Config& cfg = Config::Get();
-                if (cfg.iCustomWidth > 0)
-                    w = cfg.iCustomWidth;
-                else
-                    GetPrimaryMonitorSize(w, h);
+                RECT r = Monitor::GetTargetRect();
+                int w = r.right - r.left;
                 Log("Hook_GetPrivateProfileIntA: intercepted iSize W -> returning %d", w);
                 return w;
             }
 
-            // Force desktop resolution height
+            // Force the render height to match the window we'll create
             if (_stricmp(lpKeyName, "iSize H") == 0)
             {
-                int w, h;
-                Config& cfg = Config::Get();
-                if (cfg.iCustomHeight > 0)
-                    h = cfg.iCustomHeight;
-                else
-                    GetPrimaryMonitorSize(w, h);
+                RECT r = Monitor::GetTargetRect();
+                int h = r.bottom - r.top;
                 Log("Hook_GetPrivateProfileIntA: intercepted iSize H -> returning %d", h);
                 return h;
             }
@@ -444,41 +381,24 @@ bool D3D9Hook::Install()
     g_origGetPrivateProfileIntA = reinterpret_cast<GetPrivateProfileIntA_t>(
         HookIATEntry("kernel32.dll", "GetPrivateProfileIntA", &Hook_GetPrivateProfileIntA));
 
-    if (g_origGetPrivateProfileIntA)
+    if (!g_origGetPrivateProfileIntA)
     {
-        Log("D3D9Hook::Install: GetPrivateProfileIntA hooked successfully");
+        // Without this hook the game never sees bFull Screen=0, so it still
+        // starts in exclusive fullscreen and alt-tab still crashes. Nothing
+        // else here can stand in for it, so report failure and install
+        // nothing -- better a clear error in the log than a plugin that
+        // looks loaded but doesn't do its one job.
+        Log("D3D9Hook::Install: ERROR - GetPrivateProfileIntA hook failed. "
+            "Borderless mode is NOT active; set bFull Screen=0 in FalloutPrefs.ini manually.");
+        return false;
     }
-    else
-    {
-        Log("D3D9Hook::Install: WARNING - GetPrivateProfileIntA hook failed, trying alternate approach");
+    Log("D3D9Hook::Install: GetPrivateProfileIntA hooked successfully");
 
-        // Fallback: the function might be in a different DLL name casing
-        // or imported through api-ms-win shims
-        HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
-        if (kernel32)
-        {
-            g_origGetPrivateProfileIntA = reinterpret_cast<GetPrivateProfileIntA_t>(
-                ::GetProcAddress(kernel32, "GetPrivateProfileIntA"));
-        }
-
-        // Try hooking via GetProcAddress interception instead
-        g_origGetProcAddress = reinterpret_cast<GetProcAddress_t>(
-            HookIATEntry("kernel32.dll", "GetProcAddress", &Hook_GetProcAddress));
-
-        if (g_origGetProcAddress)
-            Log("D3D9Hook::Install: GetProcAddress hooked as fallback");
-        else
-            Log("D3D9Hook::Install: WARNING - GetProcAddress hook also failed");
-    }
-
-    // Hook 2: GetProcAddress for diagnostics (if not already hooked as fallback)
-    if (!g_origGetProcAddress)
-    {
-        g_origGetProcAddress = reinterpret_cast<GetProcAddress_t>(
-            HookIATEntry("kernel32.dll", "GetProcAddress", &Hook_GetProcAddress));
-        if (g_origGetProcAddress)
-            Log("D3D9Hook::Install: GetProcAddress hooked for diagnostics");
-    }
+    // Hook 2: GetProcAddress for diagnostics
+    g_origGetProcAddress = reinterpret_cast<GetProcAddress_t>(
+        HookIATEntry("kernel32.dll", "GetProcAddress", &Hook_GetProcAddress));
+    if (g_origGetProcAddress)
+        Log("D3D9Hook::Install: GetProcAddress hooked for diagnostics");
 
     // Hook 3: ShowWindow (from user32.dll) - block minimize
     g_origShowWindow = reinterpret_cast<ShowWindow_t>(
@@ -500,7 +420,7 @@ bool D3D9Hook::Install()
     }
 
     Log("D3D9Hook::Install: initialization complete");
-    return g_origGetPrivateProfileIntA != nullptr || g_origGetProcAddress != nullptr;
+    return true;
 }
 
 
