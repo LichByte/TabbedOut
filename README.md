@@ -31,14 +31,14 @@ Edit `Data/NVSE/Plugins/AltTabFix.ini`:
 ```ini
 [Main]
 bBorderlessWindowed=1   ; Core alt-tab fix (borderless windowed mode)
-bPauseOnFocusLoss=1     ; Auto-pause when alt-tabbed
+bPauseOnFocusLoss=1     ; Auto-pause when alt-tabbed (0 = keep running)
 bMuteOnFocusLoss=1      ; Mute audio when alt-tabbed
 bClipCursor=1           ; Confine cursor to game window
 
 [Display]
-iCustomWidth=0          ; Custom width (0 = desktop resolution)
-iCustomHeight=0         ; Custom height (0 = desktop resolution)
-iMonitor=0              ; Monitor index (0 = primary)
+iCustomWidth=0          ; Custom width (0 = monitor resolution)
+iCustomHeight=0         ; Custom height (0 = monitor resolution)
+iMonitor=0              ; Monitor index (0 = primary, 1+ = other monitors)
 bTopMost=0              ; Keep window always on top
 ```
 

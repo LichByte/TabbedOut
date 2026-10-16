@@ -130,7 +130,8 @@ bool NVSEPlugin_Load(const NVSEInterface* nvse)
         }
         else
         {
-            Log("Load: ERROR - Failed to install D3D9 hook!");
+            Log("Load: ERROR - Failed to install the INI hook, plugin disabled. "
+                "See FalloutNV_d3d9.log next to the game exe for details.");
             return false;
         }
     }
@@ -156,7 +157,7 @@ bool NVSEPlugin_Load(const NVSEInterface* nvse)
 // Called by Windows when the DLL is loaded/unloaded.
 // We use it just to save our DLL's file path for finding the INI/log files.
 // ============================================================================
-BOOL WINAPI DllMain(HINSTANCE hModule, DWORD reason, LPVOID)
+BOOL WINAPI DllMain(HINSTANCE hModule, DWORD reason, LPVOID reserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
@@ -168,9 +169,16 @@ BOOL WINAPI DllMain(HINSTANCE hModule, DWORD reason, LPVOID)
     }
     else if (reason == DLL_PROCESS_DETACH)
     {
-        // Clean up hooks to prevent crashes from dangling pointers.
-        // This also unmutes audio if it was muted.
-        WindowHook::Cleanup();
+        // DllMain runs under the loader lock. When the whole process is
+        // exiting (reserved != nullptr), touching windows or COM here can
+        // deadlock -- the classic "freeze on quit". Windows reclaims
+        // everything anyway, so do nothing. Audio/COM cleanup happens in
+        // WM_DESTROY on the game's own thread instead.
+        //
+        // Only if we're unloaded while the game keeps running (FreeLibrary)
+        // do we need to unhook the window procedure.
+        if (reserved == nullptr)
+            WindowHook::Cleanup();
     }
     return TRUE;
 }

@@ -38,6 +38,7 @@ add_library(AltTabFix SHARED
     src/d3d9_hook.h
     src/window_hook.h
     src/config.h
+    src/monitor.h
     src/utils.h
     nvse/PluginAPI.h
 )

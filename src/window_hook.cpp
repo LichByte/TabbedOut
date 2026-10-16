@@ -20,6 +20,7 @@
 
 #include "window_hook.h"
 #include "config.h"
+#include "monitor.h"
 
 #include <mmdeviceapi.h>   // WASAPI device enumeration
 #include <audiopolicy.h>   // Audio session control
@@ -190,60 +191,17 @@ static void CleanupAudio()
 
 static int g_borderlessChecks = 0;
 
-// ============================================================================
-// GetMonitorRect - Get the exact rectangle of the monitor the window is on
-//
-// Handles multi-monitor setups correctly by using MonitorFromWindow
-// instead of assuming the game is always on the primary monitor at (0,0).
-// ============================================================================
-static void GetMonitorRect(HWND hwnd, RECT& outRect)
-{
-    HMONITOR hMon = nullptr;
-    if (hwnd)
-        hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
-    else
-        hMon = MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
-
-    MONITORINFO mi = {};
-    mi.cbSize = sizeof(mi);
-    if (hMon && GetMonitorInfoA(hMon, &mi))
-    {
-        outRect = mi.rcMonitor;
-    }
-    else
-    {
-        outRect.left   = 0;
-        outRect.top    = 0;
-        outRect.right  = GetSystemMetrics(SM_CXSCREEN);
-        outRect.bottom = GetSystemMetrics(SM_CYSCREEN);
-    }
-}
-
 static void EnforceBorderless(HWND hwnd)
 {
     if (!Config::Get().bBorderlessWindowed || g_shuttingDown)
         return;
 
-    Config& cfg = Config::Get();
-
-    // Figure out where the window SHOULD be (primary monitor)
-    int targetX, targetY, targetW, targetH;
-    if (cfg.iCustomWidth > 0 && cfg.iCustomHeight > 0)
-    {
-        targetX = 0;
-        targetY = 0;
-        targetW = cfg.iCustomWidth;
-        targetH = cfg.iCustomHeight;
-    }
-    else
-    {
-        RECT monRect;
-        GetMonitorRect(nullptr, monRect);
-        targetX = monRect.left;
-        targetY = monRect.top;
-        targetW = monRect.right - monRect.left;
-        targetH = monRect.bottom - monRect.top;
-    }
+    // Figure out where the window SHOULD be (the iMonitor monitor)
+    RECT target = Monitor::GetTargetRect();
+    int targetX = target.left;
+    int targetY = target.top;
+    int targetW = target.right - target.left;
+    int targetH = target.bottom - target.top;
 
     // Check 1: Are borders present?
     bool needsFix = false;
@@ -390,6 +348,8 @@ static void OnFocusLost(HWND hwnd)
 // messages so the game doesn't know it lost focus. This prevents the game
 // from minimizing itself or doing other unwanted things. But we STOP
 // swallowing once the game is shutting down, to prevent quit freezes.
+// With bPauseOnFocusLoss=1 we forward them instead so the game pauses;
+// minimizing is blocked separately.
 // ============================================================================
 static LRESULT CALLBACK Hook_WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -413,16 +373,27 @@ static LRESULT CALLBACK Hook_WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         break;
 
     case WM_DESTROY:
+    {
         Log("WM_DESTROY received");
         g_shuttingDown = true;
+        KillTimer(hwnd, BORDERLESS_TIMER_ID);
+        ClipCursor(nullptr);
+
+        // Unmute and release WASAPI/COM here, on the game's own thread,
+        // rather than in DllMain where it can deadlock under the loader lock.
+        CleanupAudio();
+
         // Restore original window procedure so no more hook interference
-        if (g_origWndProc)
+        WNDPROC orig = g_origWndProc;
+        if (orig)
         {
-            SetWindowLongPtrA(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_origWndProc));
+            SetWindowLongPtrA(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(orig));
+            g_origWndProc = nullptr;
             Log("Original WndProc restored");
         }
         // Forward to original and let it handle destruction
-        return CallWindowProcA(g_origWndProc, hwnd, msg, wParam, lParam);
+        return CallWindowProcA(orig, hwnd, msg, wParam, lParam);
+    }
 
     // ----------------------------------------------------------------
     // FOCUS MANAGEMENT
@@ -441,10 +412,14 @@ static LRESULT CALLBACK Hook_WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         else
         {
             OnFocusLost(hwnd);
-            // SWALLOW -- don't tell the game it lost focus.
-            // The game's original handler would minimize the window and
-            // pause. By swallowing, the window stays visible behind other
-            // windows, which is correct borderless behavior.
+            // bPauseOnFocusLoss: let the game see the deactivation so its own
+            // pause logic runs. Its attempt to minimize is still blocked by
+            // the WM_SIZE / WM_SYSCOMMAND handlers and the ShowWindow hook.
+            if (Config::Get().bPauseOnFocusLoss)
+                return CallWindowProcA(g_origWndProc, hwnd, msg, wParam, lParam);
+
+            // Otherwise SWALLOW -- don't tell the game it lost focus, so it
+            // keeps running behind other windows.
             return 0;
         }
 
@@ -455,7 +430,9 @@ static LRESULT CALLBACK Hook_WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         if (LOWORD(wParam) == WA_INACTIVE)
         {
             OnFocusLost(hwnd);
-            // SWALLOW -- same reason as WM_ACTIVATEAPP
+            // Same rules as WM_ACTIVATEAPP
+            if (Config::Get().bPauseOnFocusLoss)
+                return CallWindowProcA(g_origWndProc, hwnd, msg, wParam, lParam);
             return 0;
         }
         else
@@ -603,7 +580,9 @@ bool WindowHook::Install(HWND gameWindow)
 // ============================================================================
 // WindowHook::Cleanup - Restore everything to original state
 //
-// Called during DLL unload to prevent crashes from dangling hook pointers.
+// Called from DllMain when the DLL is unloaded while the game keeps running,
+// so our WndProc isn't left pointing into freed memory. Not called on
+// process exit (see DllMain).
 // ============================================================================
 void WindowHook::Cleanup()
 {
@@ -624,8 +603,9 @@ void WindowHook::Cleanup()
     // Release cursor
     ClipCursor(nullptr);
 
-    // Clean up audio (unmutes if still muted)
-    CleanupAudio();
+    // No COM calls here (Release/CoUninitialize under the loader lock can
+    // deadlock). Just drop the pointer -- we're being unloaded anyway.
+    g_audioVolume = nullptr;
 
     if (g_wlog)
     {
